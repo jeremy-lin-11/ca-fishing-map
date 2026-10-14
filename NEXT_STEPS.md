@@ -18,5 +18,9 @@
 
 ## Ideas not started (from the improvements list)
 - Offline/PWA mode for the backcountry; multi-day trip stitching from trailheads; shareable URLs
-- git repo, ESLint, React error boundary, Playwright browser tests (need sandbox approval for a local server)
+- ESLint, React error boundary, Playwright browser tests (need sandbox approval for a local server)
 - Delete the superseded vanilla app in ~/ca-fishing-map
+
+## Done
+- Git repo on the user's personal GitHub: https://github.com/jeremy-lin-11/ca-fishing-map (private); see
+  CLAUDE.md > Repository for push setup and the lockfile-registry rule.
