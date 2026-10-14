@@ -1,0 +1,59 @@
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1c2630}
+#app{display:flex;height:100vh}
+#panel{width:380px;min-width:300px;overflow-y:auto;padding:14px;background:#f6f8fa;border-right:1px solid #d0d7de}
+#map{flex:1}
+h1{font-size:18px;margin:0 0 10px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#57606a;margin:14px 0 6px}
+#search{display:flex;gap:6px}
+#search input{flex:1;padding:7px;border:1px solid #c5ccd3;border-radius:6px}
+button{padding:7px 12px;border:0;border-radius:6px;background:#1f6feb;color:#fff;cursor:pointer}
+select{width:100%;padding:6px;border-radius:6px;border:1px solid #c5ccd3}
+#layers label{display:block;margin:3px 0}
+#legend{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:12px}
+#legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px;opacity:.8}
+.hint,.disclaimer{color:#57606a;font-size:12px}
+.card{background:#fff;border:1px solid #d0d7de;border-radius:8px;padding:10px 12px;margin:8px 0}
+.card h3{margin:0 0 4px;font-size:13px;color:#57606a;font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;font-weight:600;font-size:12px}
+.ok{background:#1a7f37}.warn{background:#bf8700}.no{background:#cf222e}.info{background:#6e7781}
+.card ul{margin:6px 0 0;padding-left:18px}
+.card li{margin:3px 0}
+.loading{color:#57606a;font-style:italic}
+.err{color:#cf222e;font-size:12px}
+
+.kind{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#bc5a00;margin:8px 0 2px}
+.reg{margin:6px 0;padding-top:6px;border-top:1px solid #eaeef2}
+.regtitle{font-weight:600}
+.code{font-weight:400;color:#6e7781;font-size:11px}
+.lbl{color:#57606a}
+details summary{cursor:pointer;font-weight:600}
+
+.tabs{display:flex;gap:4px;margin:12px 0 4px}
+.tabs button{flex:1;background:#e7ebef;color:#1c2630}
+.tabs button.active{background:#1f6feb;color:#fff}
+.routeform label{display:block;margin:4px 0}
+.routeform .row{display:flex;gap:8px}
+.field{display:flex;flex-direction:column;gap:2px;flex:1}
+.field span{font-size:12px;color:#57606a}
+.field input{padding:6px;border:1px solid #c5ccd3;border-radius:6px;width:100%}
+.routeform button{margin-top:8px;width:100%}
+.routeform button:disabled{opacity:.6;cursor:wait}
+.route.selected{border-color:#8250df;box-shadow:0 0 0 1px #8250df}
+.routehead{display:flex;justify-content:space-between;align-items:baseline;width:100%;background:none;color:inherit;padding:0;text-align:left}
+.routehead .miles{color:#8250df;font-weight:600;white-space:nowrap;margin-left:8px}
+.linkbtn{background:none;color:#0969da;padding:0;font-weight:600}
+.linkbtn:hover{text-decoration:underline}
+.warn-text{color:#9a6700}
+.field input[type=date]{font:inherit}
+
+.landpicker{margin:4px 0 6px 4px;font-size:12px}
+.landpicker .presets{display:flex;gap:4px;margin-bottom:4px}
+.landpicker .presets button{padding:2px 8px;font-size:12px;background:#e7ebef;color:#1c2630}
+.landgroup{margin:2px 0}
+.landpicker label{display:inline-flex;align-items:center;gap:4px;margin:1px 8px 1px 0}
+.landpicker .grouphead{display:flex;font-weight:600}
+.landpicker .landtype{margin-left:16px}
+.landpicker i{display:inline-block;width:11px;height:11px;border-radius:2px;opacity:.8}
+details.sub{margin:0 0 4px 20px;font-size:12px}
+details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weight:400}
