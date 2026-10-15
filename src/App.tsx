@@ -14,7 +14,8 @@ import { decodeState, encodeState } from './lib/urlState';
 import type { BBox } from './lib/geo';
 import type { LatLng, WaterSelection } from './types';
 import MapView from './components/MapView';
-import Sidebar, { type Tab } from './components/Sidebar';
+import Sidebar, { type Sheet, type Tab } from './components/Sidebar';
+import MapLayers, { type Basemap } from './components/MapLayers';
 import ErrorBoundary from './components/ErrorBoundary';
 import { DisclaimerGate } from './components/About';
 import { ALL_LAND } from './lib/land';
@@ -27,6 +28,8 @@ const shared = decodeState(window.location.hash);
 export default function App() {
   const [tab, setTab] = useState<Tab>(shared.tab ?? 'check');
   const [visible, setVisible] = useState({ ...defaultVisible, ...shared.overlays });
+  const [basemap, setBasemap] = useState<Basemap>('topo');
+  const [sheet, setSheet] = useState<Sheet>('half'); // phone layout only
   const [mapLand, setMapLand] = useState<AgencyKey[]>(shared.mapLand ?? ALL_LAND);
   const [water, setWater] = useState<WaterSelection>(shared.water ?? 'auto');
   const [point, setPoint] = useState<LatLng | null>(null);
@@ -57,7 +60,7 @@ export default function App() {
     if (!bbox) { setShoreError('Pan to the California coast to search for shore spots.'); return; }
     const { ns, ew } = bboxSpanKm(bbox), max = CONFIG.shore.maxSearchKm;
     if (ns > max || ew > max) { setShoreError(`Zoom in: the search area is ${Math.round(Math.max(ns, ew))} km across (max ${max} km).`); return; }
-    setShoreError(null); setShoreLoading(true); setSelectedSpot(null);
+    setShoreError(null); setShoreLoading(true); setSelectedSpot(null); setSheet(s => (s === 'min' ? 'half' : s));
     try { setShoreResult(await searchShore(bbox)); }
     catch (e) { setShoreError(`Search failed: ${(e as Error).message}`); }
     finally { setShoreLoading(false); }
@@ -85,10 +88,10 @@ export default function App() {
     if (!navigator.onLine) { // answer from a saved area
       const area = areaFor(areasRef.current, p);
       if (!area) { setNotice("You're offline, and this point isn't in a saved area. Save areas for offline use from the Backpacking routes tab while online."); return; }
-      setPoint(p); setTab('check'); setOfflineFrom(area); setRaw(offlineRaw(area.offline, p, zoom)); setLoading(false);
+      setPoint(p); setTab('check'); setOfflineFrom(area); setSheet(s => (s === 'min' ? 'half' : s)); setRaw(offlineRaw(area.offline, p, zoom)); setLoading(false);
       return;
     }
-    setPoint(p); setLoading(true); setTab('check'); setOfflineFrom(null);
+    setPoint(p); setLoading(true); setTab('check'); setOfflineFrom(null); setSheet(s => (s === 'min' ? 'half' : s));
     const data = await fetchPoint(p, zoom);
     if (id !== latest.current) return;
     setRaw(data); setLoading(false);
@@ -107,7 +110,7 @@ export default function App() {
     if (!bbox) { setRoutesError('The map view is outside California. Pan to California to search for routes.'); return; }
     const tooBig = checkSearchArea(bbox);
     if (tooBig) { setRoutesError(tooBig); return; }
-    setRoutesError(null); setRoutesLoading(true); setSelectedRoute(null);
+    setRoutesError(null); setRoutesLoading(true); setSelectedRoute(null); setSheet(s => (s === 'min' ? 'half' : s));
     try {
       const data = await searchArea(bbox);
       setRouteData(data);
@@ -195,7 +198,7 @@ export default function App() {
   return (
     <div id="app">
       <Sidebar tab={tab} onTab={setTab}
-        visible={visible} onToggle={id => setVisible(v => ({ ...v, [id]: !v[id] }))} mapLand={mapLand} onMapLand={setMapLand}
+        sheet={sheet} onSheet={setSheet}
         water={water} onWater={setWater} onFly={setFlyTarget} loading={loading} result={result} notice={notice}
         online={online} offlineFrom={offlineFrom} near={mapView ?? undefined}
         routes={{ filters, onFilters: setFilters, onSearch: onSearchRoutes, loading: routesLoading, error: routesError,
@@ -204,13 +207,17 @@ export default function App() {
         shore={{ filters: shoreFilters, onFilters: setShoreFilters, onSearch: onSearchShore, loading: shoreLoading, error: shoreError,
           spots: shoreSpots, total: shoreResult?.spots.length ?? 0, errors: shoreResult?.errors ?? [], selectedId: selectedSpot, onSelect: setSelectedSpot,
           onCheck: (s: ShoreSpot) => { setWater('ocean'); checkPoint({ lat: s.rockAt[1], lng: s.rockAt[0] }, 16); } }} />
+      <div id="mapwrap">
       <ErrorBoundary name="map">
-      <MapView visible={visible} mapLand={mapLand} marker={point} flyTarget={flyTarget} onClick={onMapClick}
+      <MapView basemap={basemap} visible={visible} mapLand={mapLand} marker={point} flyTarget={flyTarget} onClick={onMapClick}
         initialView={shared.map} onView={onView}
         routes={tab === 'routes' ? routes?.routes ?? [] : []} selectedRoute={selectedRoute}
         onSelectRoute={setSelectedRoute} onCheckWater={onCheckWater}
         shore={tab === 'shore' ? { result: shoreResult, spots: shoreSpots ?? [], selectedId: selectedSpot, onSelect: setSelectedSpot } : null} />
       </ErrorBoundary>
+      <MapLayers basemap={basemap} onBasemap={setBasemap} visible={visible} onToggle={id => setVisible(v => ({ ...v, [id]: !v[id] }))}
+        mapLand={mapLand} onMapLand={setMapLand} />
+      </div>
       <DisclaimerGate />
     </div>
   );

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { CONFIG } from '../config';
-import { ROCK_LABEL, type Difficulty, type RockKind, type ShoreFilters, type ShoreSpot } from '../lib/shore';
+import MoreFilters from './MoreFilters';
+import { DEFAULT_SHORE_FILTERS, ROCK_LABEL, type Difficulty, type RockKind, type ShoreFilters, type ShoreSpot } from '../lib/shore';
 
 interface Props {
   filters: ShoreFilters;
@@ -15,6 +16,8 @@ interface Props {
   onSelect: (id: string | null) => void;
   onCheck: (s: ShoreSpot) => void;
 }
+
+const MORE = ['includeTrails', 'parking', 'wheelchair', 'showNoTake', 'hideClosed'] as const;
 
 const DIFF: Record<Difficulty, { label: string; badge: string }> = {
   easy: { label: 'Easy', badge: 'ok' }, moderate: { label: 'Moderate', badge: 'warn' }, hard: { label: 'Hard', badge: 'no' }
@@ -76,6 +79,8 @@ function Spot({ s, selected, onSelect, onCheck }: { s: ShoreSpot; selected: bool
 
 export default function ShorePanel({ filters: f, onFilters, onSearch, loading, error, spots, total, errors, selectedId, onSelect, onCheck }: Props) {
   const set = <K extends keyof ShoreFilters>(k: K, v: ShoreFilters[K]) => onFilters({ ...f, [k]: v });
+  const changed = MORE.filter(k => f[k] !== DEFAULT_SHORE_FILTERS[k]).length;
+  const reset = () => onFilters({ ...f, ...Object.fromEntries(MORE.map(k => [k, DEFAULT_SHORE_FILTERS[k]])) });
   const toggleDiff = (d: Difficulty) => set('difficulty', f.difficulty.includes(d) ? f.difficulty.filter(x => x !== d) : [...f.difficulty, d]);
   return (
     <section>
@@ -88,11 +93,13 @@ export default function ShorePanel({ filters: f, onFilters, onSearch, loading, e
           <div className="row">{(['easy', 'moderate', 'hard'] as Difficulty[]).map(d => (
             <label key={d}><input type="checkbox" checked={f.difficulty.includes(d)} onChange={() => toggleDiff(d)} /> {DIFF[d].label}</label>))}</div>
         </div>
+        <MoreFilters changed={changed} onReset={reset}>
         <label><input type="checkbox" checked={f.includeTrails} onChange={e => set('includeTrails', e.target.checked)} /> Include trail access (not just official access points)</label>
         <label><input type="checkbox" checked={f.parking} onChange={e => set('parking', e.target.checked)} /> Parking listed</label>
         <label><input type="checkbox" checked={f.wheelchair} onChange={e => set('wheelchair', e.target.checked)} /> Wheelchair accessible</label>
         <label><input type="checkbox" checked={f.showNoTake} onChange={e => set('showNoTake', e.target.checked)} /> Show spots in no-take MPAs (no fishing)</label>
         <label><input type="checkbox" checked={f.hideClosed} onChange={e => set('hideClosed', e.target.checked)} /> Hide closed access points</label>
+        </MoreFilters>
         <label className="field"><span>Sort by</span>
           <select value={f.sort} onChange={e => set('sort', e.target.value as ShoreFilters['sort'])}>
             <option value="habitat">Most rocky habitat</option>
@@ -105,6 +112,9 @@ export default function ShorePanel({ filters: f, onFilters, onSearch, loading, e
       {error && <p className="err">{error}</p>}
       {spots && !loading && <>
         <h2>{spots.length} spot{spots.length === 1 ? '' : 's'} <span className="hint">({total} found)</span></h2>
+        {spots.length === 0 && total > 0 && <p className="hint">All {total} spots are hidden by the filters. Check the access
+          difficulties above{changed > 0 ? <>, or reset the {changed} changed filter{changed === 1 ? '' : 's'} under More filters</> : <>; spots
+          in no-take MPAs are hidden unless shown under More filters</>}.</p>}
         {errors.length > 0 && <p className="err">Could not load: {errors.join(', ')}. Results may be incomplete.</p>}
         {spots.map(s => <Spot key={s.id} s={s} selected={s.id === selectedId} onSelect={() => onSelect(s.id === selectedId ? null : s.id)} onCheck={() => onCheck(s)} />)}
         <p className="disclaimer">Habitat is from CDFW shoreline mapping and bluff heights from NOAA elevation data; both can be off, and

@@ -1,13 +1,8 @@
 # Next steps (as of 2026-10-14)
 
-## In progress
-- **OSM static extract** (`npm run extract:osm`): was at tile ~16/216 when this was written; Overpass is slow
-  (504/429). It's resumable — if it stopped, rerun the command and it skips finished tiles. Check
-  `public/osm/index.json`; searches in areas without tiles fall back to live Overpass.
-
-## To verify once the extract covers the area
-- `npx vitest run routes perf` (Mammoth route search + performance guard) — both should report
-  "static extract" in notes and make no Overpass calls.
+## Done 2026-10-15
+- OSM static extract complete (216/216 land tiles), `npm run build:places` rebuilt (43,395 places), and
+  `npm run test:live` passes (16 tests); `routes`/`perf` confirm searches use the static extract, not Overpass.
 
 ## Not yet checked in a browser (user runs `npm run dev`)
 - Land-type pickers (map Layers > Public land > Land types shown; Routes > Land types for water access)
@@ -23,6 +18,14 @@
   offline (DevTools > Network > Offline): app loads, saved area loads into Routes, fishing checks answer from saved
   data, USGS Topo basemap tiles show for zoom 8-14. Offline vs online answers were verified identical in Node on
   real San Diego data; the service worker and IndexedDB/Cache Storage paths only run in a browser.
+
+## Built 2026-10-15 (UX pass), not yet checked in a browser
+- Phone layout (≤700 px wide): full-screen map, panel as a bottom sheet. Drag the handle to resize (snaps to
+  min/half/full), tap it to step through sizes; it opens to half on a map tap or search. Check iOS Safari: drag
+  doesn't scroll the page, the sheet grows while place search is focused, attribution sits above the min sheet.
+- Fishing check: verdict box with land/trout chips at the top; Depth, general summary and Statewide start collapsed.
+- Layers button on the map (top right) replaces the sidebar Layers section and Leaflet's basemap control.
+- Routes/Shore: secondary filters under "More filters" with a changed-count and Reset; empty-result hints.
 
 ## Before sharing publicly (prepared 2026-10-15)
 - Verify the About panel's data-source links in a browser (most hosts were blocked in the sandbox; the CDFW ones work)

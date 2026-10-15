@@ -1,15 +1,15 @@
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1c2630}
-#app{display:flex;height:100vh}
+#app{display:flex;height:100vh;height:100dvh}
 #panel{width:380px;min-width:300px;overflow-y:auto;padding:14px;background:#f6f8fa;border-right:1px solid #d0d7de}
-#map{flex:1}
+#mapwrap{flex:1;position:relative}
+#map{position:absolute;inset:0}
 h1{font-size:18px;margin:0 0 10px}
 h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#57606a;margin:14px 0 6px}
 #search{display:flex;gap:6px}
 #search input{flex:1;padding:7px;border:1px solid #c5ccd3;border-radius:6px}
 button{padding:7px 12px;border:0;border-radius:6px;background:#1f6feb;color:#fff;cursor:pointer}
 select{width:100%;padding:6px;border-radius:6px;border:1px solid #c5ccd3}
-#layers label{display:block;margin:3px 0}
 #legend{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:12px}
 #legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px;opacity:.8}
 .hint,.disclaimer{color:#57606a;font-size:12px}
@@ -77,3 +77,51 @@ details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weig
 .crash{border-color:#cf222e}
 .safety{font-size:12px;background:#fff1f0;border:1px solid #ffb3ad;border-radius:6px;padding:6px 8px}
 .tabs button{font-size:12px;padding:7px 6px}
+
+/* Fishing-check verdict */
+.summary{border-radius:8px;padding:10px 12px;margin:8px 0;border:1px solid;border-left-width:5px;background:#fff}
+.summary.ok{border-color:#1a7f37;background:#f0fff4}.summary.warn{border-color:#bf8700;background:#fff8e1}.summary.no{border-color:#cf222e;background:#fff1f0}
+.summary-verdict{font-size:15px;font-weight:600;display:flex;gap:8px;align-items:flex-start}
+.summary-icon{flex:none;width:22px;height:22px;border-radius:50%;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+.summary.ok .summary-icon{background:#1a7f37}.summary.warn .summary-icon{background:#bf8700}.summary.no .summary-icon{background:#cf222e}
+.summary-chips{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 4px}
+.chip{font-size:12px;padding:2px 8px;border-radius:10px;background:#fff;border:1px solid}
+.chip.ok{border-color:#1a7f37;color:#116329}.chip.warn{border-color:#bf8700;color:#7d4e00}.chip.no{border-color:#cf222e;color:#a40e26}
+.card details>summary{font-size:13px;color:#57606a}
+
+/* More filters */
+details.more{margin:6px 0;padding:6px 8px;border:1px solid #d0d7de;border-radius:6px;background:#fff}
+details.more summary{display:flex;align-items:center;gap:8px}
+details.more[open] summary{margin-bottom:4px}
+details.more .linkbtn{margin:0 0 0 auto;width:auto;font-size:12px}
+.count{font-size:11px;font-weight:600;background:#ddf4ff;color:#0969da;border-radius:10px;padding:1px 7px}
+
+/* Layers control over the map */
+.maplayers{position:absolute;top:10px;right:10px;z-index:1100;display:flex;flex-direction:column;align-items:flex-end}
+.maplayers-btn{background:#fff;color:#1c2630;border:2px solid rgba(0,0,0,.2);background-clip:padding-box;font-weight:600;display:flex;gap:6px;align-items:center}
+.maplayers-panel{margin-top:6px;width:300px;max-height:calc(100dvh - 90px);overflow:auto;background:#fff;border-radius:8px;padding:4px 12px 10px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.maplayers-panel label{display:block;margin:3px 0}
+.maplayers-panel h2:first-child{margin-top:8px}
+
+/* Phones: full-screen map with the panel as a bottom sheet (sizes match sheetPx in Sidebar.tsx). */
+.sheet-handle{display:none}
+@media (max-width:700px){
+  #app{display:block}
+  #mapwrap{position:fixed;inset:0}
+  #panel{position:fixed;left:0;right:0;bottom:0;z-index:1200;width:auto;min-width:0;border-right:0;border-radius:14px 14px 0 0;
+    box-shadow:0 -4px 16px rgba(0,0,0,.18);padding:0 12px 14px;padding-bottom:max(14px,env(safe-area-inset-bottom));transition:height .2s ease}
+  #panel[data-sheet=min]{height:148px;overflow:hidden}
+  #panel[data-sheet=min]:has(#search:focus-within){height:50dvh} /* room for place suggestions */
+  #panel[data-sheet=half]{height:50dvh}
+  #panel[data-sheet=full]{height:calc(100dvh - 48px)}
+  .sheet-handle{display:flex;justify-content:center;position:sticky;top:0;z-index:2;width:calc(100% + 24px);margin:0 -12px 2px;padding:9px 0 7px;
+    background:#f6f8fa;border-radius:14px 14px 0 0;touch-action:none;cursor:grab}
+  .sheet-handle span{width:40px;height:5px;border-radius:3px;background:#afb8c1}
+  h1{font-size:16px}
+  .titlebar{margin-bottom:8px}
+  .tabs{margin:8px 0 4px}
+  #search input,select,.field input{font-size:16px} /* below 16px iOS zooms the page on focus */
+  .leaflet-bottom{bottom:148px}
+  .maplayers-panel{width:min(300px,calc(100vw - 20px));max-height:calc(100dvh - 148px - 70px)}
+  .suggestions{max-height:40dvh}
+}

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { CircleMarker, LayersControl, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { CircleMarker, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { BASEMAPS, CONFIG, type OverlayId } from '../config';
 import { AGENCY_COLORS } from '../regs';
@@ -11,6 +11,7 @@ import RouteLayers from './RouteLayers';
 import ShoreLayers from './ShoreLayers';
 import type { ShoreResult, ShoreSpot } from '../lib/shore';
 import CaliforniaClip from './CaliforniaClip';
+import type { Basemap } from './MapLayers';
 import { CA_RINGS } from '../data/california';
 import type { BBox } from '../lib/geo';
 import type { Route, WaterAccess } from '../lib/trails';
@@ -53,6 +54,7 @@ function FlyTo({ target }: { target: (LatLng & { zoom?: number }) | null }) {
 }
 
 interface Props {
+  basemap: Basemap;
   visible: Record<OverlayId, boolean>;
   mapLand: AgencyKey[];
   marker: LatLng | null;
@@ -67,7 +69,7 @@ interface Props {
   shore: { result: ShoreResult | null; spots: ShoreSpot[]; selectedId: string | null; onSelect: (id: string) => void } | null;
 }
 
-export default function MapView({ visible, mapLand, marker, flyTarget, onClick, onView, initialView, routes, selectedRoute, onSelectRoute, onCheckWater, shore }: Props) {
+export default function MapView({ basemap, visible, mapLand, marker, flyTarget, onClick, onView, initialView, routes, selectedRoute, onSelectRoute, onCheckWater, shore }: Props) {
   const { layers, regs, depth } = CONFIG;
   // Unchecked land types are filtered on the server, so they're never downloaded.
   const landWhere = ownershipWhere(ALL_LAND.filter(k => mapLand.includes(k)));
@@ -76,11 +78,9 @@ export default function MapView({ visible, mapLand, marker, flyTarget, onClick, 
     // preferCanvas: vector layers paint to one <canvas> per pane instead of one SVG element per feature. Land
     // ownership alone can put 5,000-12,000 parcels in view, which as SVG locked up the page.
     <MapContainer id="map" preferCanvas {...(initialView ? { center: [initialView.lat, initialView.lng] as [number, number], zoom: initialView.zoom } : { bounds: CONFIG.bounds })} maxBounds={L.latLngBounds(CONFIG.bounds).pad(1)}>
-      <LayersControl position="topright">
-        <LayersControl.BaseLayer checked name="USGS Topo (works offline)"><TileLayer url={BASEMAPS.usgsTopo} maxNativeZoom={16} attribution="USGS The National Map" /></LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="USGS Imagery"><TileLayer url={BASEMAPS.usgsImagery} maxNativeZoom={16} attribution="USGS The National Map" /></LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Relief & seafloor (NOAA)"><EsriImageLayer url={BASEMAPS.noaaRelief} attribution="NOAA NCEI" /></LayersControl.BaseLayer>
-      </LayersControl>
+      {basemap === 'topo' && <TileLayer url={BASEMAPS.usgsTopo} maxNativeZoom={16} attribution="USGS The National Map" />}
+      {basemap === 'imagery' && <TileLayer url={BASEMAPS.usgsImagery} maxNativeZoom={16} attribution="USGS The National Map" />}
+      {basemap === 'relief' && <EsriImageLayer url={BASEMAPS.noaaRelief} attribution="NOAA NCEI" />}
 
       {/* Pane children render only once the pane exists, so each clip goes inside its pane. */}
       <Pane name={DATA} style={{ zIndex: 400 }}><CaliforniaClip pane={DATA} /></Pane>

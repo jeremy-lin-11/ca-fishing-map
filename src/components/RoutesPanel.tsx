@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { AGENCIES } from '../regs';
-import type { Route, RouteFilters, SearchResult, WaterAccess } from '../lib/trails';
+import { DEFAULT_FILTERS, type Route, type RouteFilters, type SearchResult, type WaterAccess } from '../lib/trails';
 import { M_PER_MILE } from '../lib/geo';
 import RegsFreshness from './RegsFreshness';
 import LandTypePicker from './LandTypePicker';
 import OfflineAreas, { type OfflineProps } from './OfflineAreas';
+import MoreFilters from './MoreFilters';
 
 interface Props {
   filters: RouteFilters;
@@ -22,6 +23,14 @@ interface Props {
 const fmtDist = (m: number) => (m < 300 ? `${Math.round(m * 3.28084)} ft` : `${(m / M_PER_MILE).toFixed(2)} mi`);
 const STATUS_TEXT = { ok: 'Public, open', warn: 'Check rules/access', no: 'Closed / restricted' } as const;
 const OPEN_TEXT = (open: boolean | null) => (open === true ? 'Open on your dates' : open === false ? 'Closed on your dates' : 'Season unclear');
+
+// Filters under "More filters", and how many differ from the defaults.
+const MORE = ['maxWaterMeters', 'regs', 'trout', 'landTypes', 'publicOnly', 'excludeClosed', 'hikerOnly'] as const;
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x));
+const moreChanged = (f: RouteFilters) => MORE.filter(k => {
+  const v = f[k], d = DEFAULT_FILTERS[k];
+  return Array.isArray(v) ? !sameSet(v, d as string[]) : v !== d;
+}).length;
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="field"><span>{label}</span>{children}</label>;
@@ -73,11 +82,13 @@ function RouteItem({ r, selected, onSelect, onCheckWater }: { r: Route; selected
 export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, error, result, selectedId, onSelect, onCheckWater, offline }: Props) {
   const set = <K extends keyof RouteFilters>(k: K, v: RouteFilters[K]) => onFilters({ ...f, [k]: v });
   const num = (k: 'minMiles' | 'maxMiles' | 'maxWaterMeters') => (e: { target: { value: string } }) => set(k, Math.max(0, Number(e.target.value) || 0));
+  const changed = moreChanged(f);
+  const reset = () => onFilters({ ...f, ...Object.fromEntries(MORE.map(k => [k, DEFAULT_FILTERS[k]])) });
   return (
     <section>
       <form className="routeform" onSubmit={e => { e.preventDefault(); onSearch(); }}>
-        <p className="hint">Searches trails in the current map view. Search a place or zoom to an area first. Filters update results
-          instantly; press the button again after moving the map. Click a purple trail on the map to select it.</p>
+        <p className="hint">Searches trails in the current map view: search a place or zoom in first. Filters update results instantly;
+          search again after moving the map.</p>
         <div className="row">
           <Field label="Min miles"><input type="number" min={0} step={0.5} value={f.minMiles} onChange={num('minMiles')} /></Field>
           <Field label="Max miles"><input type="number" min={0} step={0.5} value={f.maxMiles} onChange={num('maxMiles')} /></Field>
@@ -86,6 +97,7 @@ export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, 
           <Field label="Trip start"><input type="date" value={f.tripStart} onChange={e => set('tripStart', e.target.value)} /></Field>
           <Field label="Trip end"><input type="date" value={f.tripEnd} min={f.tripStart} onChange={e => set('tripEnd', e.target.value)} /></Field>
         </div>
+        <MoreFilters changed={changed} onReset={reset}>
         <Field label="Water within">
           <select value={f.maxWaterMeters} onChange={e => set('maxWaterMeters', Number(e.target.value))}>
             <option value={100}>330 ft (100 m)</option>
@@ -114,6 +126,7 @@ export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, 
         <label><input type="checkbox" checked={!f.publicOnly} onChange={e => set('publicOnly', !e.target.checked)} /> Include water on unmapped (likely private) land</label>
         <label><input type="checkbox" checked={f.excludeClosed} onChange={e => set('excludeClosed', e.target.checked)} /> Exclude waters closed on my dates</label>
         <label><input type="checkbox" checked={f.hikerOnly} onChange={e => set('hikerOnly', e.target.checked)} /> Non-motorized trails only</label>
+        </MoreFilters>
         <Field label="Sort by">
           <select value={f.sort} onChange={e => set('sort', e.target.value as RouteFilters['sort'])}>
             <option value="length">Trail length</option>
@@ -130,6 +143,9 @@ export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, 
       {result && !loading && <>
         <h2>{result.routes.length} route{result.routes.length === 1 ? '' : 's'} <span className="hint">({result.considered} trails checked)</span></h2>
         {result.errors.length > 0 && <p className="err">Could not load: {result.errors.join(', ')}. Results may be incomplete.</p>}
+        {result.routes.length === 0 && result.considered > 0 && <p className="hint">No trails here match. Try a wider mile range
+          {changed > 0 ? <>, or reset the {changed} changed filter{changed === 1 ? '' : 's'} under More filters</> : <> or a larger "Water within" under More filters</>}.</p>}
+        {result.routes.length > 0 && <p className="hint">Tap a route, or a purple trail on the map, to see its waters.</p>}
         {result.notes.map((n, i) => <p key={i} className="hint">{n}</p>)}
         <RegsFreshness />
         {result.routes.map(r => (
