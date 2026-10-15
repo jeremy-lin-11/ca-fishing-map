@@ -4,8 +4,9 @@
 import type { BBox } from './geo';
 import { fetchRouteData, prepareRouteData, type Prepared } from './trails';
 import { toOffline, type OfflineData } from './offline';
+import { findShoreSpots, type ShoreResult } from './shore';
 
-type Reply = { prepared: Prepared; offline?: OfflineData };
+type Reply = { prepared: Prepared; offline?: OfflineData; shore?: ShoreResult };
 type Pending = { resolve: (r: Reply) => void; reject: (e: Error) => void };
 let worker: Worker | null = null, broken = false, seq = 0;
 const pending = new Map<number, Pending>();
@@ -16,11 +17,11 @@ function getWorker(): Worker | null {
     try {
       worker = new Worker(new URL('./routes.worker.ts', import.meta.url), { type: 'module' });
     } catch { broken = true; return null; }
-    worker.onmessage = (e: MessageEvent<{ id: number; prepared?: Prepared; offline?: OfflineData; error?: string }>) => {
+    worker.onmessage = (e: MessageEvent<{ id: number; prepared?: Prepared; offline?: OfflineData; shore?: ShoreResult; error?: string }>) => {
       const p = pending.get(e.data.id);
       if (!p) return;
       pending.delete(e.data.id);
-      if (e.data.prepared) p.resolve({ prepared: e.data.prepared, offline: e.data.offline }); else p.reject(new Error(e.data.error));
+      if (e.data.prepared || e.data.shore) p.resolve(e.data as Reply); else p.reject(new Error(e.data.error));
     };
     worker.onerror = () => { // the worker itself died: fail what's in flight, use the main thread from now on
       broken = true; worker = null;
@@ -40,5 +41,14 @@ function run(type: 'search' | 'save', bbox: BBox): Promise<Reply> {
 }
 
 export const searchArea = (bbox: BBox): Promise<Prepared> => run('search', bbox).then(r => r.prepared);
+
+// Shore-spot search, also off the main thread.
+export function searchShore(bbox: BBox): Promise<ShoreResult> {
+  const w = getWorker();
+  if (!w) return findShoreSpots(bbox);
+  const id = ++seq;
+  return new Promise<Reply>((resolve, reject) => { pending.set(id, { resolve, reject }); w.postMessage({ id, type: 'shore', bbox }); })
+    .then(r => r.shore!);
+}
 // Search plus the extra data an offline area needs.
 export const fetchAreaForOffline = (bbox: BBox) => run('save', bbox) as Promise<Required<Reply>>;

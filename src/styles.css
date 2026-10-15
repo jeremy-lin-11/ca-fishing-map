@@ -75,3 +75,5 @@ details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weig
 .about summary{cursor:pointer;font-weight:600}
 .about ul{padding-left:18px}
 .crash{border-color:#cf222e}
+.safety{font-size:12px;background:#fff1f0;border:1px solid #ffb3ad;border-radius:6px;padding:6px 8px}
+.tabs button{font-size:12px;padding:7px 6px}

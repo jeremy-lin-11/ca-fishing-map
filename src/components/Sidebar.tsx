@@ -9,10 +9,11 @@ import PlaceSearch from './PlaceSearch';
 import About, { IOSInstallTip } from './About';
 import ErrorBoundary from './ErrorBoundary';
 import RoutesPanel from './RoutesPanel';
+import ShorePanel from './ShorePanel';
 import LandTypePicker from './LandTypePicker';
 import { ALL_LAND } from '../lib/land';
 
-export type Tab = 'check' | 'routes';
+export type Tab = 'check' | 'routes' | 'shore';
 
 interface Props {
   tab: Tab;
@@ -21,6 +22,7 @@ interface Props {
   online: boolean;
   offlineFrom: SavedArea | null;
   routes: Parameters<typeof RoutesPanel>[0];
+  shore: Parameters<typeof ShorePanel>[0];
   visible: Record<OverlayId, boolean>;
   mapLand: AgencyKey[];
   onMapLand: (v: AgencyKey[]) => void;
@@ -54,7 +56,7 @@ function Legend() {
   );
 }
 
-export default function Sidebar({ tab, onTab, notice, online, offlineFrom, near, routes, visible, mapLand, onMapLand, onToggle, water, onWater, onFly, loading, result }: Props) {
+export default function Sidebar({ tab, onTab, notice, online, offlineFrom, near, routes, shore, visible, mapLand, onMapLand, onToggle, water, onWater, onFly, loading, result }: Props) {
   return (
     <aside id="panel">
       <div className="titlebar">
@@ -65,6 +67,7 @@ export default function Sidebar({ tab, onTab, notice, online, offlineFrom, near,
       <div className="tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'check'} className={tab === 'check' ? 'active' : ''} onClick={() => onTab('check')}>Fishing check</button>
         <button type="button" role="tab" aria-selected={tab === 'routes'} className={tab === 'routes' ? 'active' : ''} onClick={() => onTab('routes')}>Backpacking routes</button>
+        <button type="button" role="tab" aria-selected={tab === 'shore'} className={tab === 'shore' ? 'active' : ''} onClick={() => onTab('shore')}>Shore spots</button>
       </div>
 
       <section id="layers">
@@ -83,7 +86,8 @@ export default function Sidebar({ tab, onTab, notice, online, offlineFrom, near,
         <Legend />
       </section>
 
-      {tab === 'routes' ? <ErrorBoundary name="route search"><RoutesPanel {...routes} /></ErrorBoundary> : <>
+      {tab === 'shore' ? <ErrorBoundary name="shore spots"><ShorePanel {...shore} /></ErrorBoundary>
+        : tab === 'routes' ? <ErrorBoundary name="route search"><RoutesPanel {...routes} /></ErrorBoundary> : <>
       <section>
         <h2>Water type at clicked point</h2>
         <select value={water} onChange={e => onWater(e.target.value as WaterSelection)}>

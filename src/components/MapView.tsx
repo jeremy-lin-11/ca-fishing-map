@@ -8,6 +8,8 @@ import type { AgencyKey } from '../regs';
 import type { LatLng } from '../types';
 import { EsriDynamicLayer, EsriFeatureLayer, EsriImageLayer } from './EsriLayers';
 import RouteLayers from './RouteLayers';
+import ShoreLayers from './ShoreLayers';
+import type { ShoreResult, ShoreSpot } from '../lib/shore';
 import CaliforniaClip from './CaliforniaClip';
 import { CA_RINGS } from '../data/california';
 import type { BBox } from '../lib/geo';
@@ -62,9 +64,10 @@ interface Props {
   selectedRoute: string | null;
   onSelectRoute: (id: string) => void;
   onCheckWater: (w: WaterAccess) => void;
+  shore: { result: ShoreResult | null; spots: ShoreSpot[]; selectedId: string | null; onSelect: (id: string) => void } | null;
 }
 
-export default function MapView({ visible, mapLand, marker, flyTarget, onClick, onView, initialView, routes, selectedRoute, onSelectRoute, onCheckWater }: Props) {
+export default function MapView({ visible, mapLand, marker, flyTarget, onClick, onView, initialView, routes, selectedRoute, onSelectRoute, onCheckWater, shore }: Props) {
   const { layers, regs, depth } = CONFIG;
   // Unchecked land types are filtered on the server, so they're never downloaded.
   const landWhere = ownershipWhere(ALL_LAND.filter(k => mapLand.includes(k)));
@@ -109,6 +112,7 @@ export default function MapView({ visible, mapLand, marker, flyTarget, onClick, 
       <Polyline positions={STATE_LINE} interactive={false} pathOptions={{ color: '#57606a', weight: 1.5, opacity: 0.8 }} />
       <Pane name="routes" style={{ zIndex: 460 }}>
         <RouteLayers routes={routes} selectedId={selectedRoute} onSelect={onSelectRoute} onCheckWater={onCheckWater} />
+        {shore && <ShoreLayers {...shore} />}
         <CaliforniaClip pane="routes" />
       </Pane>
 

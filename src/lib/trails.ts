@@ -84,14 +84,14 @@ export function checkSearchArea(b: BBox): string | null {
 // --- fetchers ---------------------------------------------------------------------------------
 
 // Spatial filter for the search area, clipped to California (searches are already clipped to CA's bbox).
-const envelope = (b: BBox) => californiaQueryParams(b) ?? {
+export const envelopeFor = (b: BBox) => californiaQueryParams(b) ?? {
   geometry: `${b.west},${b.south},${b.east},${b.north}`, geometryType: 'esriGeometryEnvelope', inSR: '4326', spatialRel: 'esriSpatialRelIntersects'
 };
 
 // ArcGIS JSON polylines/polygons -> arrays of [lng, lat] lines (requires outSR=4326).
 const paths = (g: any): Line[] => (g?.paths || g?.rings || []) as Line[];
 
-async function arcFeatures(url: string, params: Record<string, string>, pages = 5): Promise<{ attributes: Attrs; geometry: any }[]> {
+export async function arcFeatures(url: string, params: Record<string, string>, pages = 5): Promise<{ attributes: Attrs; geometry: any }[]> {
   const out: { attributes: Attrs; geometry: any }[] = [];
   for (let page = 0; page < pages; page++) {
     const body = new URLSearchParams({ f: 'json', returnGeometry: 'true', outSR: '4326', resultOffset: String(out.length), ...params });
@@ -107,7 +107,7 @@ interface RawTrail { id: string; name: string; source: 'USFS' | 'OSM'; lines: Li
 
 async function fetchUsfsTrails(b: BBox): Promise<RawTrail[]> {
   const url = CONFIG.trails.usfs;
-  const segs = await arcFeatures(url, { ...envelope(b), where: "trail_name IS NOT NULL AND trail_type = 'TERRA'", geometryPrecision: '5',
+  const segs = await arcFeatures(url, { ...envelopeFor(b), where: "trail_name IS NOT NULL AND trail_type = 'TERRA'", geometryPrecision: '5',
     outFields: 'trail_cn,trail_name,trail_no,managing_org,terra_motorized' });
   const by = new Map<string, RawTrail>();
   for (const { attributes: a, geometry } of segs) {
@@ -212,7 +212,7 @@ async function fetchOsmStatic(b: BBox): Promise<{ trails: RawTrail[]; waters: Ra
   return { ...assembleOsm(elements, 'Mapped OSM segments in the loaded tiles'), osmBase: index.osmBase };
 }
 
-async function fetchOsm(b: BBox): Promise<{ trails: RawTrail[]; waters: RawWater[]; note: string }> {
+export async function fetchOsm(b: BBox): Promise<{ trails: RawTrail[]; waters: RawWater[]; note: string }> {
   const fromTiles = await fetchOsmStatic(b).catch(() => null);
   if (fromTiles) return { ...fromTiles, note: `OpenStreetMap data from static extract${fromTiles.osmBase ? ` (${fromTiles.osmBase.slice(0, 10)})` : ''}` };
   if (!CONFIG.trails.liveFallback) throw new Error('OpenStreetMap trails and waters aren\'t available for this area yet');
@@ -235,8 +235,8 @@ async function overpass(query: string, delays = [5000, 15000, 30000]): Promise<a
 
 export interface LandPoly { rings: Line[]; name: string; key: AgencyKey; attrs: Attrs } // attrs: Own_* (for offline point checks)
 
-async function fetchLand(b: BBox): Promise<LandPoly[]> {
-  const feats = await arcFeatures(CONFIG.layers.ownership.url, { ...envelope(b), where: '1=1', maxAllowableOffset: '0.0002', geometryPrecision: '5',
+export async function fetchLand(b: BBox): Promise<LandPoly[]> {
+  const feats = await arcFeatures(CONFIG.layers.ownership.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0002', geometryPrecision: '5',
     outFields: 'Own_Level,Own_Group,Own_Agency' }, 10);
   return feats.map(f => { const [u] = classifyOwnership([f.attributes]); return { rings: paths(f.geometry), name: u.name, key: u.key, attrs: f.attributes }; });
 }
@@ -249,7 +249,7 @@ export interface RegData { features: RegFeature[]; groups: Map<string, RegGroup>
 // allDistricts: every district/county polygon (for offline point checks), not just the §7.00 ones route search uses.
 async function fetchRegFeatures(b: BBox, allDistricts = false): Promise<RegData> {
   const R = CONFIG.regs;
-  const opts = { ...envelope(b), where: 'reg_number IS NOT NULL', outFields: 'feat_desc,reg_number', geometryPrecision: '5' };
+  const opts = { ...envelopeFor(b), where: 'reg_number IS NOT NULL', outFields: 'feat_desc,reg_number', geometryPrecision: '5' };
   const [lakes, streams, areas, districts] = await Promise.all([
     arcFeatures(`${R.url}/${R.layers.lakes}`, opts), arcFeatures(`${R.url}/${R.layers.streams}`, opts),
     arcFeatures(`${R.url}/${R.layers.tributary}`, { ...opts, maxAllowableOffset: '0.0005' }),

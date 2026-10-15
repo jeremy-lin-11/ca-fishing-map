@@ -13,7 +13,7 @@ import type { LatLng, WaterSelection } from '../types';
 
 export interface UrlState {
   map?: { lat: number; lng: number; zoom: number };
-  tab?: 'check' | 'routes';
+  tab?: 'check' | 'routes' | 'shore';
   point?: LatLng;
   water?: WaterSelection;
   mapLand?: AgencyKey[];
@@ -68,7 +68,7 @@ export function decodeState(hash: string): UrlState {
   if (map && map.length === 3 && map.every(isFinite) && Math.abs(map[0]) <= 90 && Math.abs(map[1]) <= 180)
     out.map = { lat: map[0], lng: map[1], zoom: Math.max(3, Math.min(19, map[2])) };
   const tab = p.get('tab');
-  if (tab === 'routes' || tab === 'check') out.tab = tab;
+  if (tab === 'routes' || tab === 'check' || tab === 'shore') out.tab = tab;
   const pt = p.get('pt')?.split(',').map(Number);
   if (pt && pt.length === 2 && pt.every(isFinite)) out.point = { lat: pt[0], lng: pt[1] };
   const water = p.get('water') as WaterSelection | null;

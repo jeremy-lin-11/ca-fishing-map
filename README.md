@@ -47,6 +47,11 @@ cells outside California. Re-check that override before upgrading.
   without tiles it falls back to the live Overpass API, which is slow and rate-limited. Re-run with `--force` to
   refresh the extract.
 - Route search runs in a Web Worker (`lib/routes.worker.ts`); filters are applied on the main thread instantly.
+- **Shore spots** (`lib/shore.ts`): rocky shoreline (CDFW ds3115 shoreline types) near Coastal Commission access
+  points or public-land OSM trails, ranked by rocky habitat within 500 m, with an access-difficulty rating (bluff height
+  and steepness from NOAA elevation, mapped stairs/paths, rock type) that is shown, not used to exclude spots. No-take
+  MPAs are hidden by default. The rockfish rules card quotes CDFW's Groundfish Summary (dated in the code; update it
+  when CDFW changes the rules).
 - **Shareable links** (`lib/urlState.ts`): the URL fragment always holds the view, tab, clicked point, layers,
   land types, route filters (incl. trip dates) and selected route; "Copy link" copies it. Opening a link re-runs
   the point check / route search.

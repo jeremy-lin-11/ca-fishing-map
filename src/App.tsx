@@ -3,7 +3,10 @@ import { OVERLAYS, type OverlayId } from './config';
 import { fetchPoint, interpret, type Raw } from './lib/analyze';
 import { clipToCalifornia, inCalifornia } from './lib/california';
 import { checkSearchArea, DEFAULT_FILTERS, filterRoutes, type Prepared, type RouteFilters, type WaterAccess } from './lib/trails';
-import { fetchAreaForOffline, searchArea } from './lib/routeSearch';
+import { fetchAreaForOffline, searchArea, searchShore } from './lib/routeSearch';
+import { DEFAULT_SHORE_FILTERS, filterSpots, type ShoreFilters, type ShoreResult, type ShoreSpot } from './lib/shore';
+import { bboxSpanKm } from './lib/geo';
+import { CONFIG } from './config';
 import { areaFor, offlineRaw, type SavedArea } from './lib/offline';
 import { deleteArea, listAreas, putArea } from './lib/areaStore';
 import { cacheTiles, tileUrls, uncacheTiles } from './lib/tiles';
@@ -41,6 +44,25 @@ export default function App() {
   const [routesError, setRoutesError] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
   const pendingRoute = useRef<string | null>(shared.route ?? null); // a shared link's route, selected once its search returns
+
+  // --- shore spots ---
+  const [shoreFilters, setShoreFilters] = useState<ShoreFilters>(DEFAULT_SHORE_FILTERS);
+  const [shoreResult, setShoreResult] = useState<ShoreResult | null>(null);
+  const [shoreLoading, setShoreLoading] = useState(false);
+  const [shoreError, setShoreError] = useState<string | null>(null);
+  const [selectedSpot, setSelectedSpot] = useState<string | null>(null);
+  const onSearchShore = useCallback(async () => {
+    const v = view.current;
+    const bbox = v && clipToCalifornia(v.bbox);
+    if (!bbox) { setShoreError('Pan to the California coast to search for shore spots.'); return; }
+    const { ns, ew } = bboxSpanKm(bbox), max = CONFIG.shore.maxSearchKm;
+    if (ns > max || ew > max) { setShoreError(`Zoom in: the search area is ${Math.round(Math.max(ns, ew))} km across (max ${max} km).`); return; }
+    setShoreError(null); setShoreLoading(true); setSelectedSpot(null);
+    try { setShoreResult(await searchShore(bbox)); }
+    catch (e) { setShoreError(`Search failed: ${(e as Error).message}`); }
+    finally { setShoreLoading(false); }
+  }, []);
+  const shoreSpots = useMemo(() => (shoreResult ? filterSpots(shoreResult, shoreFilters) : null), [shoreResult, shoreFilters]);
 
   // --- offline ---
   const [online, setOnline] = useState(navigator.onLine);
@@ -178,12 +200,16 @@ export default function App() {
         online={online} offlineFrom={offlineFrom} near={mapView ?? undefined}
         routes={{ filters, onFilters: setFilters, onSearch: onSearchRoutes, loading: routesLoading, error: routesError,
           result: routes, selectedId: selectedRoute, onSelect: setSelectedRoute, onCheckWater,
-          offline: { online, areas, saving, onSave: onSaveArea, onLoad: onLoadArea, onDelete: onDeleteArea } }} />
+          offline: { online, areas, saving, onSave: onSaveArea, onLoad: onLoadArea, onDelete: onDeleteArea } }}
+        shore={{ filters: shoreFilters, onFilters: setShoreFilters, onSearch: onSearchShore, loading: shoreLoading, error: shoreError,
+          spots: shoreSpots, total: shoreResult?.spots.length ?? 0, errors: shoreResult?.errors ?? [], selectedId: selectedSpot, onSelect: setSelectedSpot,
+          onCheck: (s: ShoreSpot) => { setWater('ocean'); checkPoint({ lat: s.rockAt[1], lng: s.rockAt[0] }, 16); } }} />
       <ErrorBoundary name="map">
       <MapView visible={visible} mapLand={mapLand} marker={point} flyTarget={flyTarget} onClick={onMapClick}
         initialView={shared.map} onView={onView}
         routes={tab === 'routes' ? routes?.routes ?? [] : []} selectedRoute={selectedRoute}
-        onSelectRoute={setSelectedRoute} onCheckWater={onCheckWater} />
+        onSelectRoute={setSelectedRoute} onCheckWater={onCheckWater}
+        shore={tab === 'shore' ? { result: shoreResult, spots: shoreSpots ?? [], selectedId: selectedSpot, onSelect: setSelectedSpot } : null} />
       </ErrorBoundary>
       <DisclaimerGate />
     </div>
