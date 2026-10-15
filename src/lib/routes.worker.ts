@@ -1,11 +1,15 @@
-// Runs a route search (downloads + proximity/rules preparation) off the main thread.
+// Runs route searches (downloads + proximity/rules preparation) off the main thread.
+// 'save' also returns the data an offline area needs (land, all regulation polygons and text, lakes).
 import { fetchRouteData, prepareRouteData } from './trails';
+import { toOffline } from './offline';
 import type { BBox } from './geo';
 
-self.onmessage = async (e: MessageEvent<{ id: number; bbox: BBox }>) => {
-  const { id, bbox } = e.data;
+self.onmessage = async (e: MessageEvent<{ id: number; type?: 'search' | 'save'; bbox: BBox }>) => {
+  const { id, type = 'search', bbox } = e.data;
   try {
-    self.postMessage({ id, prepared: prepareRouteData(await fetchRouteData(bbox)) });
+    const data = await fetchRouteData(bbox, { allDistricts: type === 'save' });
+    const prepared = prepareRouteData(data);
+    self.postMessage(type === 'save' ? { id, prepared, offline: toOffline(data) } : { id, prepared });
   } catch (err) {
     self.postMessage({ id, error: (err as Error).message || 'Route search failed' });
   }

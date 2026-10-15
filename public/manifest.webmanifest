@@ -1,0 +1,11 @@
+{
+  "name": "California Public Land & Fishing Map",
+  "short_name": "CA Fishing Map",
+  "description": "Public land, CDFW fishing regulations, seasons and trout limits, and backpacking routes near fishable water. Works offline in saved areas.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f8fa",
+  "theme_color": "#1f6feb",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

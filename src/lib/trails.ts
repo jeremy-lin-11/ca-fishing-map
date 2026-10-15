@@ -131,7 +131,7 @@ async function fetchUsfsTrails(b: BBox): Promise<RawTrail[]> {
   return [...by.values()];
 }
 
-interface RawWater { id: string; name: string; kind: 'lake' | 'stream'; lines: Line[] }
+export interface RawWater { id: string; name: string; kind: 'lake' | 'stream'; lines: Line[] }
 
 // One OSM way/relation, from either live Overpass JSON or a static tile.
 interface OsmElement { id: string; name: string; trail: boolean; kind: 'lake' | 'stream'; tags: Record<string, string>; lines: Line[] }
@@ -228,25 +228,27 @@ async function overpass(query: string, delays = [5000, 15000, 30000]): Promise<a
   }
 }
 
-interface LandPoly { rings: Line[]; name: string; key: AgencyKey }
+export interface LandPoly { rings: Line[]; name: string; key: AgencyKey; attrs: Attrs } // attrs: Own_* (for offline point checks)
 
 async function fetchLand(b: BBox): Promise<LandPoly[]> {
   const feats = await arcFeatures(CONFIG.layers.ownership.url, { ...envelope(b), where: '1=1', maxAllowableOffset: '0.0002', geometryPrecision: '5',
     outFields: 'Own_Level,Own_Group,Own_Agency' }, 10);
-  return feats.map(f => { const [u] = classifyOwnership([f.attributes]); return { rings: paths(f.geometry), name: u.name, key: u.key }; });
+  return feats.map(f => { const [u] = classifyOwnership([f.attributes]); return { rings: paths(f.geometry), name: u.name, key: u.key, attrs: f.attributes }; });
 }
 
 // 'area' = tributary/drainage polygons ("X Lake and tributaries"), which apply to any water inside them.
 // 'district' = §7.00 district general-regulation polygons.
-interface RegFeature { kind: 'lake' | 'stream' | 'area' | 'district'; code: string; desc: string; lines: Line[]; mapCode?: string; unverified?: boolean }
+export interface RegFeature { kind: 'lake' | 'stream' | 'area' | 'district'; code: string; desc: string; lines: Line[]; mapCode?: string; unverified?: boolean }
+export interface RegData { features: RegFeature[]; groups: Map<string, RegGroup>; rows: Attrs[] } // rows: raw text rows (for offline point checks)
 
-async function fetchRegFeatures(b: BBox): Promise<{ features: RegFeature[]; groups: Map<string, RegGroup> }> {
+// allDistricts: every district/county polygon (for offline point checks), not just the §7.00 ones route search uses.
+async function fetchRegFeatures(b: BBox, allDistricts = false): Promise<RegData> {
   const R = CONFIG.regs;
   const opts = { ...envelope(b), where: 'reg_number IS NOT NULL', outFields: 'feat_desc,reg_number', geometryPrecision: '5' };
   const [lakes, streams, areas, districts] = await Promise.all([
     arcFeatures(`${R.url}/${R.layers.lakes}`, opts), arcFeatures(`${R.url}/${R.layers.streams}`, opts),
     arcFeatures(`${R.url}/${R.layers.tributary}`, { ...opts, maxAllowableOffset: '0.0005' }),
-    arcFeatures(`${R.url}/${R.layers.districts}`, { ...opts, where: "reg_number LIKE '7.00(%'", maxAllowableOffset: '0.002' })
+    arcFeatures(`${R.url}/${R.layers.districts}`, { ...opts, where: allDistricts ? 'reg_number IS NOT NULL' : "reg_number LIKE '7.00(%'", maxAllowableOffset: '0.002' })
   ]);
   const mapped: RegFeature[] = [
     ...lakes.map(f => ({ kind: 'lake' as const, f })), ...streams.map(f => ({ kind: 'stream' as const, f })),
@@ -254,14 +256,16 @@ async function fetchRegFeatures(b: BBox): Promise<{ features: RegFeature[]; grou
   ].map(({ kind, f }) => ({ kind, code: String(f.attributes.reg_number).trim(), desc: String(f.attributes.feat_desc || '').replace(/\[[a-z]\]/g, '').trim(), lines: paths(f.geometry) }));
   const features = mapped.length ? await resolveHits(R, mapped) : mapped;
   const groups = new Map<string, RegGroup>();
+  let rows: Attrs[] = [];
   if (features.length) {
     const rowsByCode = await fetchRegRows(R, features.map(f => f.code));
-    const kindIdx = { lake: 0, stream: 1, area: 2, district: 3 } as const;
-    const hits = features.map(f => ({ kind: KINDS[kindIdx[f.kind]], desc: f.desc, code: f.code }));
+    rows = [...rowsByCode.values()];
+    const hits = features.map(f => ({ kind: KINDS[KIND_IDX[f.kind]], desc: f.desc, code: f.code }));
     for (const g of buildGroups({ hits, rowsByCode, failed: [] })) groups.set(g.code, g);
   }
-  return { features, groups };
+  return { features, groups, rows };
 }
+export const KIND_IDX = { lake: 0, stream: 1, area: 2, district: 3 } as const;
 
 // --- matching ---------------------------------------------------------------------------------
 
@@ -284,7 +288,7 @@ function boundsOf(lines: Line[]): Bounds {
 const DEG_PAD = 0.003; // ~300 m, > REG_MATCH_M
 const nearBox = ([x, y]: Coord, lines: Line[], pad = 0) => { const b = boundsOf(lines); return x >= b[0] - pad && x <= b[2] + pad && y >= b[1] - pad && y <= b[3] + pad; };
 
-function assessWater(w: RawWater, at: Coord, land: LandPoly[], regs: { features: RegFeature[]; groups: Map<string, RegGroup> },
+function assessWater(w: RawWater, at: Coord, land: LandPoly[], regs: RegData,
   proj: (c: Coord) => [number, number]): Omit<WaterBase, 'meters'> {
   const onLand = classifyOrder(land.filter(p => nearBox(at, p.rings, DEG_PAD) &&
     (pointInPolygon(at, p.rings) || nearestBetween([[at]], p.rings, proj, LAND_MATCH_M) !== null)));
@@ -292,7 +296,7 @@ function assessWater(w: RawWater, at: Coord, land: LandPoly[], regs: { features:
   for (const f of regs.features) {
     if (!nearBox(at, f.lines, DEG_PAD)) continue;
     if (f.kind === 'district') {
-      if (!pointInPolygon(at, f.lines)) continue;
+      if (!f.code.startsWith('7.00(') || !pointInPolygon(at, f.lines)) continue; // other district rows (bass, hours…) aren't trout seasons
       const s = summarizeGroup(regs.groups.get(f.code), f, 'district-streams');
       const scope = districtScope(s);
       if (scope) rules.push({ ...s, scope });
@@ -394,12 +398,12 @@ export interface RouteData {
   trails: RawTrail[];
   waters: RawWater[];
   land: LandPoly[];
-  regs: { features: RegFeature[]; groups: Map<string, RegGroup> };
+  regs: RegData;
   errors: string[];
   notes: string[];
 }
 
-export async function fetchRouteData(b: BBox): Promise<RouteData> {
+export async function fetchRouteData(b: BBox, opts: { allDistricts?: boolean } = {}): Promise<RouteData> {
   const errors: string[] = [];
   const soft = <T,>(p: Promise<T>, name: string, empty: T) =>
     p.catch((e: Error) => { errors.push(/busy/.test(e.message) ? e.message : name); return empty; });
@@ -407,7 +411,7 @@ export async function fetchRouteData(b: BBox): Promise<RouteData> {
     soft(fetchUsfsTrails(b), 'Forest Service trails', []),
     soft(fetchOsm(b), 'OpenStreetMap trails & waters', { trails: [], waters: [], note: '' }),
     soft(fetchLand(b), 'public land', []),
-    soft(fetchRegFeatures(b), 'CDFW special regulations', { features: [], groups: new Map() })
+    soft(fetchRegFeatures(b, opts.allDistricts), 'CDFW special regulations', { features: [], groups: new Map(), rows: [] })
   ]);
   return { bbox: b, trails: dedupeTrails(usfs, osm.trails), waters: osm.waters, land, regs, errors, notes: osm.note ? [osm.note] : [] };
 }

@@ -57,3 +57,11 @@ details summary{cursor:pointer;font-weight:600}
 .landpicker i{display:inline-block;width:11px;height:11px;border-radius:2px;opacity:.8}
 details.sub{margin:0 0 4px 20px;font-size:12px}
 details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weight:400}
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.titlebar h1{margin:0}
+.copylink{padding:4px 10px;font-size:12px;white-space:nowrap}
+.offline .row{display:flex;gap:6px;margin:4px 0}
+.offline input{flex:1;padding:6px;border:1px solid #c5ccd3;border-radius:6px}
+.offline progress{width:100%}
+.offline .areas{padding-left:16px}
+.offline-note{background:#fff8c5;border:1px solid #d4a72c;border-radius:6px;padding:6px 8px}

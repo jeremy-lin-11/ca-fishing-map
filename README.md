@@ -47,5 +47,13 @@ cells outside California. Re-check that override before upgrading.
   without tiles it falls back to the live Overpass API, which is slow and rate-limited. Re-run with `--force` to
   refresh the extract.
 - Route search runs in a Web Worker (`lib/routes.worker.ts`); filters are applied on the main thread instantly.
+- **Shareable links** (`lib/urlState.ts`): the URL fragment always holds the view, tab, clicked point, layers,
+  land types, route filters (incl. trip dates) and selected route; "Copy link" copies it. Opening a link re-runs
+  the point check / route search.
+- **Offline** (`public/sw.js`, `lib/offline.ts`, `lib/tiles.ts`, `lib/areaStore.ts`): installable PWA. "Save this
+  map view" (Backpacking routes tab) stores the area's route data, land ownership, CDFW regulation polygons/text
+  (IndexedDB) and USGS topo tiles for zoom 8-14 (Cache Storage). Offline, saved areas load into route search, and
+  fishing checks inside them are answered from saved data with the same `interpret()` as online. The service
+  worker registers in production builds only: test offline with `npm run build && npm run preview`.
 
 Informational only. Always confirm against the current CDFW regulation booklets.

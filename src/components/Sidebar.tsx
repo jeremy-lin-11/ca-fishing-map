@@ -3,6 +3,7 @@ import { CONFIG, OVERLAYS, type OverlayId } from '../config';
 import { LINKS, type AgencyKey } from '../regs';
 import { http } from '../lib/http';
 import type { Analysis } from '../lib/analyze';
+import type { SavedArea } from '../lib/offline';
 import type { LatLng, WaterSelection } from '../types';
 import ResultPanel from './ResultPanel';
 import RoutesPanel from './RoutesPanel';
@@ -15,6 +16,8 @@ interface Props {
   tab: Tab;
   onTab: (t: Tab) => void;
   notice: string | null;
+  online: boolean;
+  offlineFrom: SavedArea | null;
   routes: Parameters<typeof RoutesPanel>[0];
   visible: Record<OverlayId, boolean>;
   mapLand: AgencyKey[];
@@ -45,6 +48,16 @@ function Search({ onFly }: { onFly: (p: LatLng) => void }) {
   );
 }
 
+// The URL always reflects the current view, filters and selection (see lib/urlState.ts).
+function CopyLink() {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    catch { window.prompt('Copy this link:', window.location.href); }
+  };
+  return <button type="button" className="copylink" onClick={copy} title="Copy a link to this view">{copied ? 'Copied!' : 'Copy link'}</button>;
+}
+
 function Legend() {
   return (
     <div id="legend">
@@ -55,10 +68,13 @@ function Legend() {
   );
 }
 
-export default function Sidebar({ tab, onTab, notice, routes, visible, mapLand, onMapLand, onToggle, water, onWater, onFly, loading, result }: Props) {
+export default function Sidebar({ tab, onTab, notice, online, offlineFrom, routes, visible, mapLand, onMapLand, onToggle, water, onWater, onFly, loading, result }: Props) {
   return (
     <aside id="panel">
-      <h1>CA Public Land &amp; Fishing</h1>
+      <div className="titlebar">
+        <h1>CA Public Land &amp; Fishing</h1>
+        <CopyLink />
+      </div>
       <Search onFly={onFly} />
       <div className="tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'check'} className={tab === 'check' ? 'active' : ''} onClick={() => onTab('check')}>Fishing check</button>
@@ -93,6 +109,9 @@ export default function Sidebar({ tab, onTab, notice, routes, visible, mapLand, 
       </section>
 
       <section id="result">
+        {!online && !offlineFrom && <p className="hint">You're offline. Fishing checks work inside saved areas.</p>}
+        {offlineFrom && result && <p className="hint offline-note">Offline answer from "{offlineFrom.name}", saved {new Date(offlineFrom.savedAt).toLocaleDateString()}.
+          Land owners are shown by agency; depth and place names need a connection.</p>}
         {notice && <p className="err">{notice}</p>}
         {loading ? <p className="loading">Checking land status and regulations…</p>
           : result ? <ResultPanel r={result} />

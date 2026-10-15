@@ -4,6 +4,7 @@ import type { Route, RouteFilters, SearchResult, WaterAccess } from '../lib/trai
 import { M_PER_MILE } from '../lib/geo';
 import RegsFreshness from './RegsFreshness';
 import LandTypePicker from './LandTypePicker';
+import OfflineAreas, { type OfflineProps } from './OfflineAreas';
 
 interface Props {
   filters: RouteFilters;
@@ -15,6 +16,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onCheckWater: (w: WaterAccess) => void;
+  offline: OfflineProps;
 }
 
 const fmtDist = (m: number) => (m < 300 ? `${Math.round(m * 3.28084)} ft` : `${(m / M_PER_MILE).toFixed(2)} mi`);
@@ -68,7 +70,7 @@ function RouteItem({ r, selected, onSelect, onCheckWater }: { r: Route; selected
   );
 }
 
-export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, error, result, selectedId, onSelect, onCheckWater }: Props) {
+export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, error, result, selectedId, onSelect, onCheckWater, offline }: Props) {
   const set = <K extends keyof RouteFilters>(k: K, v: RouteFilters[K]) => onFilters({ ...f, [k]: v });
   const num = (k: 'minMiles' | 'maxMiles' | 'maxWaterMeters') => (e: { target: { value: string } }) => set(k, Math.max(0, Number(e.target.value) || 0));
   return (
@@ -118,8 +120,10 @@ export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, 
             <option value="waters">Most fishable waters</option>
           </select>
         </Field>
-        <button disabled={loading}>{loading ? 'Searching…' : result ? 'Search this map view' : 'Find routes'}</button>
+        <button disabled={loading || !offline.online} title={offline.online ? '' : 'Offline: load a saved area below'}>
+          {loading ? 'Searching…' : result ? 'Search this map view' : 'Find routes'}</button>
       </form>
+      <OfflineAreas {...offline} />
 
       {loading && <p className="loading">Fetching trails, lakes, streams, land and regulations…</p>}
       {error && <p className="err">{error}</p>}

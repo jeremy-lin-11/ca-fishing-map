@@ -77,6 +77,8 @@ export const CONFIG = {
 };
 
 export const BASEMAPS = {
+  // USGS National Map topo (public domain): trails and contours, and the basemap saved for offline use.
+  usgsTopo: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
   topo: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
   satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',

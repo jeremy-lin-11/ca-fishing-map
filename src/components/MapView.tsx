@@ -58,21 +58,23 @@ interface Props {
   flyTarget: LatLng | null;
   onClick: (p: LatLng, zoom: number) => void;
   onView: (b: BBox, zoom: number) => void;
+  initialView?: { lat: number; lng: number; zoom: number }; // from a shared link
   routes: Route[];
   selectedRoute: string | null;
   onSelectRoute: (id: string) => void;
   onCheckWater: (w: WaterAccess) => void;
 }
 
-export default function MapView({ visible, mapLand, marker, flyTarget, onClick, onView, routes, selectedRoute, onSelectRoute, onCheckWater }: Props) {
+export default function MapView({ visible, mapLand, marker, flyTarget, onClick, onView, initialView, routes, selectedRoute, onSelectRoute, onCheckWater }: Props) {
   const { layers, regs, depth } = CONFIG;
   // Unchecked land types are filtered on the server, so they're never downloaded.
   const landWhere = ownershipWhere(ALL_LAND.filter(k => mapLand.includes(k)));
   const coarseWhere = landWhere === '1=1' ? layers.ownership.coarseWhere : `(${layers.ownership.coarseWhere}) AND (${landWhere})`;
   return (
-    <MapContainer id="map" bounds={CONFIG.bounds} maxBounds={L.latLngBounds(CONFIG.bounds).pad(1)}>
+    <MapContainer id="map" {...(initialView ? { center: [initialView.lat, initialView.lng] as [number, number], zoom: initialView.zoom } : { bounds: CONFIG.bounds })} maxBounds={L.latLngBounds(CONFIG.bounds).pad(1)}>
       <LayersControl position="topright">
-        <LayersControl.BaseLayer checked name="Topo"><TileLayer url={BASEMAPS.topo} attribution="Esri, USGS" /></LayersControl.BaseLayer>
+        <LayersControl.BaseLayer checked name="USGS Topo (works offline)"><TileLayer url={BASEMAPS.usgsTopo} maxNativeZoom={16} attribution="USGS The National Map" /></LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Topo"><TileLayer url={BASEMAPS.topo} attribution="Esri, USGS" /></LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="Satellite"><TileLayer url={BASEMAPS.satellite} attribution="Esri" /></LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="Street"><TileLayer url={BASEMAPS.street} attribution="© OpenStreetMap" /></LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="Ocean">

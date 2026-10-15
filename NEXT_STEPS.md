@@ -16,8 +16,16 @@
 - Regulation freshness warning (should say text is 2021–2022, current booklet 2026–2027)
 - California clip at the state line during zoom animation; route search running in the Web Worker
 
+## Built 2026-10-15, not yet checked in a browser
+- Shareable links: URL updates as you use the app; "Copy link"; opening a link restores view/filters/point and
+  re-runs a shared route search (route selected if it's in the new search, else a message)
+- Offline: `npm run build && npm run preview`, install the app, save an area (Routes tab > Offline areas), then go
+  offline (DevTools > Network > Offline): app loads, saved area loads into Routes, fishing checks answer from saved
+  data, USGS Topo basemap tiles show for zoom 8-14. Offline vs online answers were verified identical in Node on
+  real San Diego data; the service worker and IndexedDB/Cache Storage paths only run in a browser.
+
 ## Ideas not started (from the improvements list)
-- Offline/PWA mode for the backcountry; multi-day trip stitching from trailheads; shareable URLs
+- Multi-day trip stitching from trailheads
 - ESLint, React error boundary, Playwright browser tests (need sandbox approval for a local server)
 - Delete the superseded vanilla app in ~/ca-fishing-map
 
