@@ -201,10 +201,14 @@ async function fetchOsmStatic(b: BBox): Promise<{ trails: RawTrail[]; waters: Ra
   if (keys.some(k => !index.tiles[k])) return null;
   const tiles = await Promise.all(keys.filter(k => !(index.tiles[k] as { empty?: boolean }).empty) // open-ocean tiles: nothing to load
     .map(k => http(`${CONFIG.trails.staticOsm}/t/${k}.json`).then(r => r.json())));
+  // Tiles are 0.5° squares; keep only what's in the searched view (plus a margin for waters near trails at its
+  // edge), so results match "this map view" and the proximity work stays proportional to the view.
+  const pad = 0.01; // ~1 km, > MAX_WATER_METERS
+  const inView = (lines: Line[]) => lines.some(l => l.some(([x, y]) => x >= b.west - pad && x <= b.east + pad && y >= b.south - pad && y <= b.north + pad));
   const elements: OsmElement[] = tiles.flatMap((t: any) => [
     ...t.trails.map((e: any) => ({ id: e.i, name: e.n, trail: true, kind: 'stream' as const, tags: Object.fromEntries(Object.entries(e.t || {}).map(([k, v]) => [k, String(v)])), lines: e.l.map(decodeLine) })),
     ...t.waters.map((e: any) => ({ id: e.i, name: e.n, trail: false, kind: e.k, tags: {}, lines: e.l.map(decodeLine) }))
-  ]);
+  ]).filter((e: OsmElement) => inView(e.lines));
   return { ...assembleOsm(elements, 'Mapped OSM segments in the loaded tiles'), osmBase: index.osmBase };
 }
 

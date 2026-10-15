@@ -41,7 +41,9 @@ export function EsriFeatureLayer({ url, pane, where, minZoom, maxZoom, style, to
   useEffect(() => {
     const layer: esri.FeatureLayer = new CaliforniaFeatureLayer({
       url, pane, where: where || '1=1', minZoom, maxZoom, simplifyFactor: 0.5, precision: 5, bounds: CA_VISIBLE_BOUNDS,
-      style: (f?: GeoJSON.Feature) => style(f?.properties || {}),
+      // Features without a tooltip are display-only: not hit-tested on hover/click (thousands of land parcels
+      // would make every mouse move scan them), and clicks fall through to the map for the fishing check.
+      style: (f?: GeoJSON.Feature) => ({ ...style(f?.properties || {}), interactive: !!tooltip }),
       onEachFeature: tooltip ? (f: GeoJSON.Feature, l: L.Layer) => l.bindTooltip(tooltip(f.properties || {}), { sticky: true }) : undefined
     });
     layer.on('requesterror', e => console.warn('Layer failed', url, e));

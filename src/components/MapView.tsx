@@ -21,7 +21,6 @@ const landStyle = (p: Record<string, any>): L.PathOptions => {
   const c = AGENCY_COLORS[ownershipKey(p)];
   return { color: c, weight: 1, fillColor: c, fillOpacity: 0.35 };
 };
-const landTooltip = (p: Record<string, any>) => `${p.Own_Agency ?? ''}`;
 const mpaStyle = (): L.PathOptions => ({ color: '#0077b6', weight: 1.5, fillColor: '#0096c7', fillOpacity: 0.3, dashArray: '4 3' });
 const regStyle: L.PathOptions = { color: '#e76f00', weight: 2, fillColor: '#f4a261', fillOpacity: 0.35 };
 const regLakeStyle = () => regStyle;
@@ -71,7 +70,9 @@ export default function MapView({ visible, mapLand, marker, flyTarget, onClick, 
   const landWhere = ownershipWhere(ALL_LAND.filter(k => mapLand.includes(k)));
   const coarseWhere = landWhere === '1=1' ? layers.ownership.coarseWhere : `(${layers.ownership.coarseWhere}) AND (${landWhere})`;
   return (
-    <MapContainer id="map" {...(initialView ? { center: [initialView.lat, initialView.lng] as [number, number], zoom: initialView.zoom } : { bounds: CONFIG.bounds })} maxBounds={L.latLngBounds(CONFIG.bounds).pad(1)}>
+    // preferCanvas: vector layers paint to one <canvas> per pane instead of one SVG element per feature. Land
+    // ownership alone can put 5,000-12,000 parcels in view, which as SVG locked up the page.
+    <MapContainer id="map" preferCanvas {...(initialView ? { center: [initialView.lat, initialView.lng] as [number, number], zoom: initialView.zoom } : { bounds: CONFIG.bounds })} maxBounds={L.latLngBounds(CONFIG.bounds).pad(1)}>
       <LayersControl position="topright">
         <LayersControl.BaseLayer checked name="USGS Topo (works offline)"><TileLayer url={BASEMAPS.usgsTopo} maxNativeZoom={16} attribution="USGS The National Map" /></LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="USGS Imagery"><TileLayer url={BASEMAPS.usgsImagery} maxNativeZoom={16} attribution="USGS The National Map" /></LayersControl.BaseLayer>
@@ -83,8 +84,10 @@ export default function MapView({ visible, mapLand, marker, flyTarget, onClick, 
 
       {visible.land && mapLand.length > 0 && <>
         {/* Large holders only at low zoom; every owner (cities, districts, nonprofits) from zoom 10. */}
-        <EsriFeatureLayer pane={DATA} url={layers.ownership.url} where={coarseWhere} minZoom={7} maxZoom={9} style={landStyle} tooltip={landTooltip} />
-        <EsriFeatureLayer pane={DATA} url={layers.ownership.url} where={landWhere} minZoom={10} style={landStyle} tooltip={landTooltip} />
+        {/* Zoom 7 would draw ~29,000 parcels, so land starts at 8: large holders at 8-9, every owner from 10.
+            The owner of any point shows in the fishing check, so parcels have no hover tooltips. */}
+        <EsriFeatureLayer pane={DATA} url={layers.ownership.url} where={coarseWhere} minZoom={8} maxZoom={9} style={landStyle} />
+        <EsriFeatureLayer pane={DATA} url={layers.ownership.url} where={landWhere} minZoom={10} style={landStyle} />
       </>}
       {visible.mpa && <EsriFeatureLayer pane={DATA} url={layers.mpa.url} minZoom={6} style={mpaStyle} />}
       {visible.regwaters && <>
