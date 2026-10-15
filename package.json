@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude '**/*.live.test.ts'",
     "test:live": "vitest run live",
-    "extract:osm": "node scripts/extract-osm.mjs"
+    "extract:osm": "node scripts/extract-osm.mjs",
+    "build:places": "node scripts/build-places.mjs"
   },
   "dependencies": {
     "esri-leaflet": "3.0.19",

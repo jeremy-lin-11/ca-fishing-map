@@ -57,3 +57,15 @@ cells outside California. Re-check that override before upgrading.
   worker registers in production builds only: test offline with `npm run build && npm run preview`.
 
 Informational only. Always confirm against the current CDFW regulation booklets.
+
+## Deploying (Cloudflare Pages, free)
+
+1. Finish the OSM extract (`npm run extract:osm`), then `npm run build:places`.
+2. Commit `public/osm/` (remove it from `.gitignore`; ~30–50 MB) and `public/places.json`, and push.
+3. In Cloudflare: Workers & Pages > Create > Pages > Connect to Git > this repo.
+   Build command `npm run build`, output directory `dist`, environment variable `NODE_VERSION=22`.
+4. Optional: add a custom domain (Cloudflare Registrar sells at cost, ~$10–15/year).
+
+`public/_headers` sets caching (the service worker is never cached; hashed assets are immutable). In production the
+app makes no Overpass or geocoder requests: OSM data comes from the static tiles and place search from
+`public/places.json`. Set `CONFIG.feedbackUrl` (src/config.ts) to show a "Report a problem" link in About.

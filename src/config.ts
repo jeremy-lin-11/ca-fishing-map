@@ -35,7 +35,13 @@ export const CONFIG = {
       url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/ArcGIS/rest/services/California_Marine_Protected_Areas/FeatureServer/1'
     }
   },
-  geocoder: 'https://nominatim.openstreetmap.org',
+  // County for the fishing check (Esri Living Atlas, US Census counties). Whether a point is in California is
+  // answered locally from the state outline (lib/california.ts).
+  counties: 'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Counties_Generalized_Boundaries/FeatureServer/0',
+  // Place search index (towns + OSM-named lakes, streams, trails), built by `npm run build:places`; works offline.
+  places: '/places.json',
+  // Optional "Report a problem" link shown in About (e.g. a public issues page or form). Empty = hidden.
+  feedbackUrl: '',
 
   // CDFW freshwater regulations (official regulation viewer data). Layer ids inside this service.
   regs: {
@@ -50,6 +56,9 @@ export const CONFIG = {
     overpass: 'https://overpass-api.de/api/interpreter',
     // Static tiles from `npm run extract:osm` (public/osm/). Used first; live Overpass is the fallback.
     staticOsm: '/osm',
+    // Query Overpass live where static tiles are missing: development only. A public deployment shouldn't send
+    // visitors' browsers to the shared Overpass servers.
+    liveFallback: import.meta.env.DEV,
     maxSearchKm: 60 // per side; keeps Overpass and geometry queries fast
   },
 
@@ -79,11 +88,10 @@ export const CONFIG = {
 export const BASEMAPS = {
   // USGS National Map topo (public domain): trails and contours, and the basemap saved for offline use.
   usgsTopo: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
-  topo: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  oceanBase: 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-  oceanReference: 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}'
+  // All public domain (US government), so they're fine for a public app without API keys.
+  usgsImagery: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}',
+  // NOAA NCEI global relief (seafloor + land hillshade), an image service drawn per view.
+  noaaRelief: 'https://gis.ngdc.noaa.gov/arcgis/rest/services/DEM_mosaics/DEM_global_mosaic_hillshade/ImageServer'
 };
 
 export type OverlayId = 'land' | 'regwaters' | 'mpa' | 'depth' | 'rca';

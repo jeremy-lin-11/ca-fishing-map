@@ -211,6 +211,7 @@ async function fetchOsmStatic(b: BBox): Promise<{ trails: RawTrail[]; waters: Ra
 async function fetchOsm(b: BBox): Promise<{ trails: RawTrail[]; waters: RawWater[]; note: string }> {
   const fromTiles = await fetchOsmStatic(b).catch(() => null);
   if (fromTiles) return { ...fromTiles, note: `OpenStreetMap data from static extract${fromTiles.osmBase ? ` (${fromTiles.osmBase.slice(0, 10)})` : ''}` };
+  if (!CONFIG.trails.liveFallback) throw new Error('OpenStreetMap trails and waters aren\'t available for this area yet');
   return { ...(await fetchOsmLive(b)), note: 'OpenStreetMap data queried live (no static tiles for this area)' };
 }
 
@@ -406,7 +407,7 @@ export interface RouteData {
 export async function fetchRouteData(b: BBox, opts: { allDistricts?: boolean } = {}): Promise<RouteData> {
   const errors: string[] = [];
   const soft = <T,>(p: Promise<T>, name: string, empty: T) =>
-    p.catch((e: Error) => { errors.push(/busy/.test(e.message) ? e.message : name); return empty; });
+    p.catch((e: Error) => { errors.push(/busy|available/.test(e.message) ? e.message : name); return empty; });
   const [usfs, osm, land, regs] = await Promise.all([
     soft(fetchUsfsTrails(b), 'Forest Service trails', []),
     soft(fetchOsm(b), 'OpenStreetMap trails & waters', { trails: [], waters: [], note: '' }),

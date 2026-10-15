@@ -1,0 +1,17 @@
+# Cloudflare Pages response headers (https://developers.cloudflare.com/pages/configuration/headers/)
+# The service worker must never be served stale, or app updates won't reach installed users.
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+# Hashed build assets never change.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+# OSM tiles and the places index change only when re-extracted.
+/osm/*
+  Cache-Control: public, max-age=86400
+/places.json
+  Cache-Control: public, max-age=86400
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

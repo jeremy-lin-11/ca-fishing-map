@@ -12,6 +12,8 @@ import type { BBox } from './lib/geo';
 import type { LatLng, WaterSelection } from './types';
 import MapView from './components/MapView';
 import Sidebar, { type Tab } from './components/Sidebar';
+import ErrorBoundary from './components/ErrorBoundary';
+import { DisclaimerGate } from './components/About';
 import { ALL_LAND } from './lib/land';
 import type { AgencyKey } from './regs';
 
@@ -28,7 +30,7 @@ export default function App() {
   const [raw, setRaw] = useState<Raw | null>(null);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [flyTarget, setFlyTarget] = useState<LatLng | null>(null);
+  const [flyTarget, setFlyTarget] = useState<(LatLng & { zoom?: number }) | null>(null);
   const [mapView, setMapView] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
   const latest = useRef(0);
   const view = useRef<{ bbox: BBox; zoom: number } | null>(null);
@@ -173,14 +175,17 @@ export default function App() {
       <Sidebar tab={tab} onTab={setTab}
         visible={visible} onToggle={id => setVisible(v => ({ ...v, [id]: !v[id] }))} mapLand={mapLand} onMapLand={setMapLand}
         water={water} onWater={setWater} onFly={setFlyTarget} loading={loading} result={result} notice={notice}
-        online={online} offlineFrom={offlineFrom}
+        online={online} offlineFrom={offlineFrom} near={mapView ?? undefined}
         routes={{ filters, onFilters: setFilters, onSearch: onSearchRoutes, loading: routesLoading, error: routesError,
           result: routes, selectedId: selectedRoute, onSelect: setSelectedRoute, onCheckWater,
           offline: { online, areas, saving, onSave: onSaveArea, onLoad: onLoadArea, onDelete: onDeleteArea } }} />
+      <ErrorBoundary name="map">
       <MapView visible={visible} mapLand={mapLand} marker={point} flyTarget={flyTarget} onClick={onMapClick}
         initialView={shared.map} onView={onView}
         routes={tab === 'routes' ? routes?.routes ?? [] : []} selectedRoute={selectedRoute}
         onSelectRoute={setSelectedRoute} onCheckWater={onCheckWater} />
+      </ErrorBoundary>
+      <DisclaimerGate />
     </div>
   );
 }

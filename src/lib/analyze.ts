@@ -4,7 +4,6 @@ import { AGENCIES, LINKS, MPA_TYPES } from '../regs';
 import type { LatLng, Note, Status, WaterSelection, WaterType } from '../types';
 import { pick, queryPoint, type Attrs } from './arcgis';
 import { FT_PER_M, M_PER_FATHOM, nearestRcaLines, sampleDem } from './depth';
-import { http } from './http';
 import { classifyLands, classifyOwnership, type LandUnit } from './land';
 import { buildGroups, lookupRegs, type RegGroup, type RegLookup } from './regdata';
 import { districtScope, summarizeGroup, troutRule, type RegSummary, type TroutRule } from './rules';
@@ -32,9 +31,13 @@ export interface Raw {
 
 const settle = <T,>(p: Promise<T>) => p.catch(() => null);
 
-async function reverseGeocode(p: LatLng) {
-  try { return await (await http(`${CONFIG.geocoder}/reverse?format=jsonv2&zoom=10&lat=${p.lat}&lon=${p.lng}`)).json(); }
-  catch { return null; }
+// County at the point, shaped like the geocoder response this used to come from ({ address: { county, state } }).
+// null off the coast or if the service is unavailable.
+async function countyAt(p: LatLng) {
+  try {
+    const [c] = await queryPoint(CONFIG.counties, p, { outFields: 'NAME,STATE_NAME' });
+    return c ? { address: { county: String(c.NAME), state: String(c.STATE_NAME) } } : null;
+  } catch { return null; }
 }
 
 // zoom is used to size the stream search radius (~14px) so thin lines are clickable at any zoom.
@@ -48,7 +51,7 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
     settle(queryPoint(L.federal.url, point)),
     settle(queryPoint(L.parks.url, point, { where: L.parks.where })),
     settle(queryPoint(L.mpa.url, point)),
-    reverseGeocode(point),
+    countyAt(point),
     sampleDem(D.dem, point),
     settle(queryPoint(D.rca, point, { meters: 2000, outFields: 'feat_desc' })),
     settle(queryPoint(salton.url, point, { where: salton.where, meters: 400, outFields: salton.field })),
@@ -95,12 +98,11 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
   const land = lands[0];
   const lake = (d.waterBody ?? []).find(w => /lake|reservoir/i.test(String(w.FTYPE ?? '')));
 
-  // Open-coast points fall outside every CDFW inland regulation area (even the §0.01 state boundary polygon);
-  // reverse geocoding can't tell, since it snaps offshore points to the nearest county.
-  const inCA = d.geo?.address?.state === 'California';
-  const offshore = !d.regs.failed.length && !d.regs.hits.length && d.dem != null && d.dem < 0;
-  const water: WaterType = waterSel !== 'auto' ? waterSel
-    : (mpas.length || offshore || !d.geo || d.geo.error || !inCA ? 'ocean' : lake ? 'lake' : 'stream');
+  // Open-coast points fall outside every CDFW inland regulation area (even the §0.01 state boundary polygon)
+  // and every county. Inland, a point is a lake if it's on a mapped water body, else a stream.
+  const noInlandRegs = !d.regs.failed.length && !d.regs.hits.length;
+  const offshore = noInlandRegs && ((d.dem != null && d.dem < 0) || (!d.geo && !!d.own && !d.own.length));
+  const water: WaterType = waterSel !== 'auto' ? waterSel : mpas.length || offshore ? 'ocean' : lake ? 'lake' : 'stream';
 
   let verdict: Analysis['verdict'] = { status: 'ok', text: 'Fishing legal with a CA license (check water-specific rules)' };
   const notes: Note[] = [];

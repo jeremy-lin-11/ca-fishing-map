@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { CircleMarker, LayerGroup, LayersControl, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { CircleMarker, LayersControl, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { BASEMAPS, CONFIG, type OverlayId } from '../config';
 import { AGENCY_COLORS } from '../regs';
 import { ALL_LAND, ownershipKey, ownershipWhere } from '../lib/land';
 import type { AgencyKey } from '../regs';
 import type { LatLng } from '../types';
-import { EsriDynamicLayer, EsriFeatureLayer } from './EsriLayers';
+import { EsriDynamicLayer, EsriFeatureLayer, EsriImageLayer } from './EsriLayers';
 import RouteLayers from './RouteLayers';
 import CaliforniaClip from './CaliforniaClip';
 import { CA_RINGS } from '../data/california';
@@ -45,9 +45,9 @@ function ViewReporter({ onView }: { onView: (b: BBox, zoom: number) => void }) {
   return null;
 }
 
-function FlyTo({ target }: { target: LatLng | null }) {
+function FlyTo({ target }: { target: (LatLng & { zoom?: number }) | null }) {
   const map = useMap();
-  useEffect(() => { if (target) map.setView([target.lat, target.lng], 12); }, [map, target]);
+  useEffect(() => { if (target) map.setView([target.lat, target.lng], target.zoom ?? 12); }, [map, target]);
   return null;
 }
 
@@ -55,7 +55,7 @@ interface Props {
   visible: Record<OverlayId, boolean>;
   mapLand: AgencyKey[];
   marker: LatLng | null;
-  flyTarget: LatLng | null;
+  flyTarget: (LatLng & { zoom?: number }) | null;
   onClick: (p: LatLng, zoom: number) => void;
   onView: (b: BBox, zoom: number) => void;
   initialView?: { lat: number; lng: number; zoom: number }; // from a shared link
@@ -74,15 +74,8 @@ export default function MapView({ visible, mapLand, marker, flyTarget, onClick, 
     <MapContainer id="map" {...(initialView ? { center: [initialView.lat, initialView.lng] as [number, number], zoom: initialView.zoom } : { bounds: CONFIG.bounds })} maxBounds={L.latLngBounds(CONFIG.bounds).pad(1)}>
       <LayersControl position="topright">
         <LayersControl.BaseLayer checked name="USGS Topo (works offline)"><TileLayer url={BASEMAPS.usgsTopo} maxNativeZoom={16} attribution="USGS The National Map" /></LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Topo"><TileLayer url={BASEMAPS.topo} attribution="Esri, USGS" /></LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Satellite"><TileLayer url={BASEMAPS.satellite} attribution="Esri" /></LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Street"><TileLayer url={BASEMAPS.street} attribution="© OpenStreetMap" /></LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Ocean">
-          <LayerGroup>
-            <TileLayer url={BASEMAPS.oceanBase} attribution="Esri, GEBCO, NOAA" maxNativeZoom={13} />
-            <TileLayer url={BASEMAPS.oceanReference} maxNativeZoom={13} />
-          </LayerGroup>
-        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="USGS Imagery"><TileLayer url={BASEMAPS.usgsImagery} maxNativeZoom={16} attribution="USGS The National Map" /></LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Relief & seafloor (NOAA)"><EsriImageLayer url={BASEMAPS.noaaRelief} attribution="NOAA NCEI" /></LayersControl.BaseLayer>
       </LayersControl>
 
       {/* Pane children render only once the pane exists, so each clip goes inside its pane. */}

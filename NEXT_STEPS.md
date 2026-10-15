@@ -24,6 +24,14 @@
   data, USGS Topo basemap tiles show for zoom 8-14. Offline vs online answers were verified identical in Node on
   real San Diego data; the service worker and IndexedDB/Cache Storage paths only run in a browser.
 
+## Before sharing publicly (prepared 2026-10-15)
+- Verify the About panel's data-source links in a browser (most hosts were blocked in the sandbox; the CDFW ones work)
+- Decide the feedback channel and set `CONFIG.feedbackUrl` (a public issues page or form; don't publish an email
+  without the user's OK)
+- After the OSM extract finishes: `npm run build:places`, un-ignore and commit `public/osm/`, then connect
+  Cloudflare Pages (README > Deploying). The user does the Cloudflare account step.
+- Consider emailing CDFW about the stale (2021–2022 booklet) regulation dataset
+
 ## Ideas not started (from the improvements list)
 - Multi-day trip stitching from trailheads
 - ESLint, React error boundary, Playwright browser tests (need sandbox approval for a local server)

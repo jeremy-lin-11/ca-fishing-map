@@ -2,6 +2,7 @@
 // Data is only requested where it touches California; the basemap still shows everywhere.
 import { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
+import { createLayerComponent } from '@react-leaflet/core';
 import * as esri from 'esri-leaflet';
 import type L from 'leaflet';
 import { boxTouchesCalifornia, californiaQueryArea, CA_VISIBLE_BOUNDS } from '../lib/california';
@@ -68,3 +69,8 @@ export function EsriDynamicLayer({ url, opacity, pane }: { url: string; opacity:
   }, [map, url, opacity, pane]);
   return null;
 }
+
+// ArcGIS image service as a basemap (e.g. NOAA relief). A real layer component so LayersControl can switch it.
+export const EsriImageLayer = createLayerComponent<L.Layer, { url: string; attribution?: string }>(
+  ({ url, attribution }, ctx) => ({ instance: esri.imageMapLayer({ url, attribution, format: 'jpgpng' } as esri.ImageMapLayerOptions), context: ctx })
+);
