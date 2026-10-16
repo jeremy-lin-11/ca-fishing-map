@@ -1,0 +1,3 @@
+# Generated data (npm run extract:osm / build:places): no text diffs, excluded from GitHub language stats.
+public/osm/** linguist-generated=true -diff
+public/places.json linguist-generated=true -diff

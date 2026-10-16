@@ -53,6 +53,18 @@ function FlyTo({ target }: { target: (LatLng & { zoom?: number }) | null }) {
   return null;
 }
 
+// OSM's attribution guidelines ask for a visible credit wherever its data is drawn: route and shore-spot trails here.
+const OSM_CREDIT = '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>';
+function OsmCredit({ active }: { active: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!active) return;
+    map.attributionControl?.addAttribution(OSM_CREDIT);
+    return () => { map.attributionControl?.removeAttribution(OSM_CREDIT); };
+  }, [map, active]);
+  return null;
+}
+
 interface Props {
   basemap: Basemap;
   visible: Record<OverlayId, boolean>;
@@ -120,6 +132,7 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
       <ClickHandler onClick={onClick} />
       <ViewReporter onView={onView} />
       <FlyTo target={flyTarget} />
+      <OsmCredit active={routes.length > 0 || (shore?.spots.length ?? 0) > 0} />
     </MapContainer>
   );
 }
