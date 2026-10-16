@@ -205,8 +205,9 @@ with its date; update it when CDFW changes the rules.
 
 ## Deploying (Cloudflare Pages, free)
 
-1. Finish the OSM extract (`npm run extract:osm`), then `npm run build:places`.
-2. Commit `public/osm/` (remove it from `.gitignore`; ~30–50 MB) and `public/places.json`, and push.
+1. `public/osm/` (~32 MB) and `public/places.json` are committed. To refresh them: `npm run extract:osm -- --force`,
+   then `npm run build:places`, commit both and push.
+2. Push to `main`.
 3. In Cloudflare: Workers & Pages > Create > Pages > Connect to Git > this repo.
    Build command `npm run build`, output directory `dist`, environment variable `NODE_VERSION=22`.
 4. Optional: add a custom domain (Cloudflare Registrar sells at cost, ~$10–15/year).

@@ -31,7 +31,7 @@
 - Verify the About panel's data-source links in a browser (most hosts were blocked in the sandbox; the CDFW ones work)
 - Decide the feedback channel and set `CONFIG.feedbackUrl` (a public issues page or form; don't publish an email
   without the user's OK)
-- After the OSM extract finishes: `npm run build:places`, un-ignore and commit `public/osm/`, then connect
+- `public/osm/` and `places.json` are committed (2026-10-16); next, connect
   Cloudflare Pages (README > Deploying). The user does the Cloudflare account step.
 - Consider emailing CDFW about the stale (2021–2022 booklet) regulation dataset
 

@@ -1,7 +1,5 @@
 node_modules
 dist
-# OpenStreetMap static extract: regenerate with `npm run extract:osm` (large; data © OpenStreetMap contributors, ODbL)
-public/osm/
 .DS_Store
 *.log
 coverage
