@@ -10,6 +10,8 @@ the CDFW regulations for that water (season and trout limit on a given day), and
 
 It works as an installable app, offline in saved areas, and every view is a shareable link.
 
+**Live:** https://jeremy-lin-11.github.io/ca-fishing-map/ (GitHub Pages, deployed on every push to `main`).
+
 ```
 npm install
 npm run extract:osm   # one-time (1-3 h, resumable): OpenStreetMap trails/lakes/streams -> public/osm/
@@ -193,7 +195,9 @@ scripts/
   extract-osm.mjs    OSM extract → public/osm/ (resumable, polite to Overpass)
   build-places.mjs   place-search index → public/places.json
 public/
-  sw.js, manifest.webmanifest, icon.svg, _headers (Cloudflare caching), osm/, places.json
+  sw.js, manifest.webmanifest, icon.svg, _headers (Cloudflare only), osm/, places.json
+.github/workflows/
+  pages.yml          test, build and deploy to GitHub Pages on push to main
 ```
 
 **Pinned internals:** esri-leaflet is pinned to 3.0.19 because `EsriLayers.tsx` overrides its private
@@ -203,23 +207,43 @@ public/
 **Rules quoted by hand:** the shore-angler rockfish rules card (`ShorePanel.tsx`) quotes CDFW's Groundfish Summary
 with its date; update it when CDFW changes the rules.
 
-## Deploying
+## Deploying (GitHub Pages)
 
-**GitHub Pages (current):** `.github/workflows/pages.yml` runs the tests and builds with `BASE_PATH=/<repo>/` on every
-push to `main`, then deploys to https://jeremy-lin-11.github.io/ca-fishing-map/ (Settings > Pages > Source: GitHub
-Actions). GitHub Pages ignores `public/_headers`, so caching uses its defaults.
+The site is hosted on GitHub Pages at https://jeremy-lin-11.github.io/ca-fishing-map/. There is no backend, so a
+deploy is just the static `dist/` folder.
 
-**Cloudflare Pages (alternative, free):**
+**How it deploys:** every push to `main` runs `.github/workflows/pages.yml`, which installs with `npm ci`, runs
+`npm test`, builds with `BASE_PATH=/ca-fishing-map/` and publishes `dist/`. A failing test stops the deploy. To
+redeploy without a code change, run the workflow from the Actions tab (Run workflow). Progress and logs:
+`gh run list` / `gh run watch`.
 
-1. `public/osm/` (~32 MB) and `public/places.json` are committed. To refresh them: `npm run extract:osm -- --force`,
-   then `npm run build:places`, commit both and push.
-2. Push to `main`.
-3. In Cloudflare: Workers & Pages > Create > Pages > Connect to Git > this repo.
-   Build command `npm run build`, output directory `dist`, environment variable `NODE_VERSION=22`.
-4. Optional: add a custom domain (Cloudflare Registrar sells at cost, ~$10–15/year).
+**Base path:** Pages serves the site under `/<repo>/`, not the domain root. `vite.config.ts` reads `BASE_PATH`
+(default `/`, so `npm run dev` is unaffected), and static data paths in `src/config.ts` (`places`, `staticOsm`) are
+built from `import.meta.env.BASE_URL`. New same-origin fetches must use `BASE_URL` too, or they'll 404 in
+production. Check a production build locally with:
 
-`public/_headers` sets caching (the service worker is never cached; hashed assets are immutable). Set
-`CONFIG.feedbackUrl` (src/config.ts) to show a "Report a problem" link in About.
+```
+BASE_PATH=/ca-fishing-map/ npm run build && npx vite preview --base /ca-fishing-map/
+```
+
+**Refreshing data:** `public/osm/` (~32 MB) and `public/places.json` are committed and deployed as-is. To refresh:
+`npm run extract:osm -- --force`, then `npm run build:places`, commit both and push.
+
+**One-time setup** (already done): the repo must be public for free Pages, and Settings > Pages > Source is set to
+"GitHub Actions". Renaming the repo changes the URL; the workflow picks up the new name automatically.
+
+**Caching:** GitHub Pages ignores `public/_headers` and serves every file with a ~10-minute cache, including
+`sw.js`, so installed apps can take a few minutes to pick up a new release.
+
+**Custom domain (optional):** add it under Settings > Pages > Custom domain, then build with `BASE_PATH=/` (change
+the workflow's `BASE_PATH`) since the site moves to the domain root.
+
+**Alternative: Cloudflare Pages.** Connect the repo (Workers & Pages > Create > Pages > Connect to Git), build
+command `npm run build`, output `dist`, environment variable `NODE_VERSION=22`, no `BASE_PATH`. Cloudflare honours
+`public/_headers` (service worker never cached, hashed assets immutable).
+
+Set `CONFIG.feedbackUrl` (src/config.ts) to show a "Report a problem" link in About, e.g.
+`https://github.com/jeremy-lin-11/ca-fishing-map/issues`.
 
 Data credits and licenses are in the app's About panel. OpenStreetMap data is © OpenStreetMap contributors under the
 ODbL (see `public/osm/LICENSE.md`).
