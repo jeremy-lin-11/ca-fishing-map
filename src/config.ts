@@ -39,7 +39,7 @@ export const CONFIG = {
   // answered locally from the state outline (lib/california.ts).
   counties: 'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Counties_Generalized_Boundaries/FeatureServer/0',
   // Place search index (towns + OSM-named lakes, streams, trails), built by `npm run build:places`; works offline.
-  places: '/places.json',
+  places: `${import.meta.env.BASE_URL}places.json`,
   // Optional "Report a problem" link shown in About (e.g. a public issues page or form). Empty = hidden.
   feedbackUrl: '',
 
@@ -55,7 +55,7 @@ export const CONFIG = {
     // OpenStreetMap: trails outside national forests (national/state parks) and named lakes/streams.
     overpass: 'https://overpass-api.de/api/interpreter',
     // Static tiles from `npm run extract:osm` (public/osm/). Used first; live Overpass is the fallback.
-    staticOsm: '/osm',
+    staticOsm: `${import.meta.env.BASE_URL}osm`,
     // Query Overpass live where static tiles are missing: development only. A public deployment shouldn't send
     // visitors' browsers to the shared Overpass servers.
     liveFallback: import.meta.env.DEV,

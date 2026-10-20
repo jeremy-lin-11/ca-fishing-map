@@ -203,7 +203,13 @@ public/
 **Rules quoted by hand:** the shore-angler rockfish rules card (`ShorePanel.tsx`) quotes CDFW's Groundfish Summary
 with its date; update it when CDFW changes the rules.
 
-## Deploying (Cloudflare Pages, free)
+## Deploying
+
+**GitHub Pages (current):** `.github/workflows/pages.yml` runs the tests and builds with `BASE_PATH=/<repo>/` on every
+push to `main`, then deploys to https://jeremy-lin-11.github.io/ca-fishing-map/ (Settings > Pages > Source: GitHub
+Actions). GitHub Pages ignores `public/_headers`, so caching uses its defaults.
+
+**Cloudflare Pages (alternative, free):**
 
 1. `public/osm/` (~32 MB) and `public/places.json` are committed. To refresh them: `npm run extract:osm -- --force`,
    then `npm run build:places`, commit both and push.
