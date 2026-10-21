@@ -11,7 +11,8 @@
     "test": "vitest run --exclude '**/*.live.test.ts'",
     "test:live": "vitest run live",
     "extract:osm": "node scripts/extract-osm.mjs",
-    "build:places": "node scripts/build-places.mjs"
+    "build:places": "node scripts/build-places.mjs",
+    "build:lakes": "node scripts/build-lakes.mjs"
   },
   "dependencies": {
     "arcgis-pbf-parser": "0.0.4",

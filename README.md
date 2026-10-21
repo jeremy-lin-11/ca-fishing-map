@@ -39,6 +39,9 @@ Tap anywhere in California and you get one clear verdict (yes / check first / no
   in total.
 - **Warnings** where the rules can't be applied automatically. For example, rules for streams where salmon and
   steelhead run, or a regulation the tool couldn't match to the water with confidence.
+- **Estimated fishing pressure** (low / moderate / high) where fishing is allowed. It's based on road access, how many
+  people live nearby, CDFW trout stocking, nearby campgrounds and access points, and wilderness, and lists the
+  reasons. It's an estimate, not a count of anglers.
 - **Ocean basics too:** Marine Protected Areas (no-take or limited-take zones), rockfish depth limits, and depth.
 
 The map can also show public land by owner, waters with special regulations, protected marine areas and depth
@@ -74,6 +77,7 @@ npm run test:live     # known points against the live data services (needs netwo
 npm run build         # type-check + production build to dist/
 npm run extract:osm   # one-time (1-3 h, resumable): OpenStreetMap lakes/streams/trails -> public/osm/
 npm run build:places  # place-search index -> public/places.json (rerun after the extract)
+npm run build:lakes   # OSM lake outlines -> public/lakes/ (rerun after the extract)
 ```
 
 ### Architecture
@@ -135,6 +139,11 @@ the text table. Each query fails soft (`null`) and is listed under "Could not lo
 | county | US Census counties | display, offshore detection |
 | elevation/depth | NOAA NCEI DEM | ocean depth, lake surface elevation |
 | RCA lines, lake contours | CDFW | groundfish depth lines, Salton Sea depth |
+| pressure signals | Caltrans public roads, CDFW stocked waters + planting log, wilderness, Coastal Commission access, USFS recreation sites; town populations from `places.json` | estimated fishing pressure (`pressure.ts`) |
+
+**Estimated pressure** (`lib/pressure.ts`): `fetchPressure` gathers the signals and `estimatePressure` scores them.
+Public roads (Caltrans) are counted within ¼, 1 and 3 miles. The total maps to low / moderate / high, and every signal that moved
+the score is listed. The card is hidden where fishing isn't allowed or the water is closed today, and offline.
 
 `interpret` then decides the water type and the verdict. It also works out the season and trout limit for today
 (`rules.troutRule`) from the season text, which `season.ts` parses into date ranges ("Last Sat. in Apr. through
@@ -182,7 +191,7 @@ route-search `tab`, `f`, `route`) are ignored.
 | Land ownership | CAL FIRE California Land Ownership | California-only, every owner type incl. LADWP, districts, nonprofits, tribal |
 | Regulations | CDFW regulation viewer service (map layers + text table keyed by Title 14 section) | the official data behind CDFW's own viewer |
 | Seasons & limits | parsed from that text (`season.ts`, `rules.ts`) | no structured season data exists |
-| Lakes | Esri USA Detailed Water Bodies (USGS NHD) | lake vs. stream at a point; NHD types tell salt evaporators and industrial ponds from lakes |
+| Lakes | Esri USA Detailed Water Bodies (USGS NHD), then OpenStreetMap lake outlines (`public/lakes/`) | lake vs. stream at a point; NHD types tell salt evaporators and industrial ponds from lakes; OSM fills in reservoirs NHD maps only as unnamed "Inundation Area" (e.g. Stevens Creek Reservoir) and names unnamed lakes |
 | Bays | CDFW San Francisco Bay District (§27.00) polygon; PMEP coastal embayments (CDFW BIOS ds2792) | CDFW's inland district polygons also cover bays, so bay outlines decide where ocean rules apply |
 | Elevation & depth | NOAA NCEI DEM mosaic | ocean depth and lake surface elevation |
 | Basemaps | USGS National Map (topo, imagery), NOAA relief | public domain: fine for public use and offline caching |
@@ -236,8 +245,9 @@ src/
 scripts/
   extract-osm.mjs    OSM extract → public/osm/ (resumable, polite to Overpass); feeds the place index
   build-places.mjs   place-search index → public/places.json
+  build-lakes.mjs    OSM lake outlines → public/lakes/ (names saying lake/reservoir/pond only; river polygons excluded)
 public/
-  sw.js, manifest.webmanifest, icon.svg, _headers (Cloudflare only), osm/, places.json
+  sw.js, manifest.webmanifest, icon.svg, _headers (Cloudflare only), osm/, places.json, lakes/
 .github/workflows/
   pages.yml          test, build and deploy to GitHub Pages on push to main
 ```
@@ -275,7 +285,8 @@ BASE_PATH=/ca-fishing-map/ npm run build && npx vite preview --base /ca-fishing-
 ```
 
 **Refreshing data:** `public/osm/` (~32 MB, the source of the place index) and `public/places.json` are committed.
-To refresh them, run `npm run extract:osm -- --force`, then `npm run build:places`, then commit both and push.
+To refresh them, run `npm run extract:osm -- --force`, then `npm run build:places` and `npm run build:lakes`, then
+commit all three and push.
 
 **One-time setup** (already done): the repo must be public for free Pages, and Settings > Pages > Source is set to
 "GitHub Actions". Renaming the repo changes the URL; the workflow picks up the new name automatically.

@@ -135,6 +135,17 @@ describe('interpret', () => {
     expect(interpret({ lat: 37.8, lng: -122.26 }, 'auto', { ...raw, waterBody: [{ NAME: 'Merritt, Lake', FTYPE: 'Lake/Pond' }] }).water).toBe('lake');
     expect(interpret({ lat: 32.775, lng: -117.225 }, 'auto', { ...raw, coastalBay: [] }).water).toBe('stream');
   });
+  it('falls back to OpenStreetMap lakes where NHD has only an unnamed inundation area, but never in bays', () => {
+    const inundation = { NAME: ' ', FTYPE: 'Inundation Area', FCODE_DESC: 'Inundation Area: Inundation Control Status = Not Controlled' };
+    const raw = { ...base, dem: 158, waterBody: [inundation], osmLake: [{ NAME: 'Stevens Creek Reservoir' }],
+      regs: { ...base.regs, hits: [{ kind: KINDS[3], desc: 'South Central District', code: '7.00(e)' }] } };
+    const a = interpret({ lat: 37.29686, lng: -122.07737 }, 'auto', raw);
+    expect(a.water).toBe('lake');
+    expect(interpret({ lat: 37.29686, lng: -122.07737 }, 'auto', { ...raw, osmLake: [] }).water).toBe('stream');
+    expect(interpret({ lat: 37.5, lng: -122.1 }, 'auto', { ...raw, bay: [{}] }).water).toBe('ocean');           // OSM water in a bay isn't a lake
+    const unnamed = interpret({ lat: 37.3, lng: -122.1 }, 'auto', { ...raw, own: [], waterBody: [{ NAME: ' ', FTYPE: 'Lake/Pond' }] });
+    expect(unnamed.notes.some(n => n.strong === 'Stevens Creek Reservoir')).toBe(true);                            // names an unnamed NHD lake
+  });
 });
 
 import { inCalifornia } from './california';

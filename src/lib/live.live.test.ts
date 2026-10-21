@@ -7,8 +7,10 @@ import { analyzePoint, fetchPoint, interpret, type Analysis } from './analyze';
 import { fetchOffline, offlineRaw } from './offline';
 import { regsFreshness } from './regdata';
 import { CONFIG } from '../config';
+import { readFileSync } from 'node:fs';
 
 beforeAll(() => setHttp(async (url, init) => {
+  if (url.endsWith('places.json') || url.startsWith('/lakes/')) { const t = readFileSync(`public${url.startsWith('/') ? url : '/places.json'}`, 'utf8'); return { json: async () => JSON.parse(t) }; }
   const args = ['-sS', '-m', '60', '-A', 'ca-fishing-map-test', ...(init?.body ? ['--data', String(init.body)] : []), url];
   const out = execFileSync('curl', args, { maxBuffer: 1e8 }).toString();
   return { json: async () => JSON.parse(out) };
@@ -87,6 +89,17 @@ describe('live services', () => {
     for (const [lat, lng] of [[32.705, -117.228], [40.765, -124.205], [38.2, -122.94], [32.775, -117.225]]) // San Diego, Humboldt, Tomales, Mission
       expect((await at(lat, lng)).water).toBe('ocean');
     expect((await at(39.426, -123.80)).water).toBe('stream'); // Noyo River estuary: inland tidewater (§1.53)
+  });
+  it('Stevens Creek Reservoir: a lake, though NHD maps it only as an unnamed inundation area', async () => {
+    const a = await at(37.29686, -122.07737);
+    expect(a.water).toBe('lake');
+    expect((await at(38.58, -121.505)).water).toBe('stream'); // Sacramento River polygon in OSM: still a river
+  });
+  it('estimated pressure: wilderness lake low, metro pier high', async () => {
+    const lake = await at(37.725, -119.18), pier = await at(37.6345, -122.4935);
+    expect(lake.pressure).toMatchObject({ level: 'low', missing: [] });
+    expect(lake.pressure!.reasons.map(r => r.text)).toContain('Inside the Ansel Adams Wilderness: foot or horse access only');
+    expect(pier.pressure).toMatchObject({ level: 'high', missing: [] });
   });
   it('offline area around Crowley Lake answers like the online check', async () => {
     const o = await fetchOffline({ south: 37.55, west: -118.80, north: 37.66, east: -118.66 });

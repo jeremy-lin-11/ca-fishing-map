@@ -10,6 +10,7 @@ import { BAY_POND_M, type Raw } from './analyze';
 import { californiaQueryParams } from './california';
 import { bboxSpanKm, nearestBetween, pointInPolygon, projector, type BBox, type Coord, type Line } from './geo';
 import { fetchRegRows, KINDS, resolveHits, type Hit } from './regdata';
+import { osmLakesIn, type OsmLake } from './osmLakes';
 import type { LatLng } from '../types';
 
 // 'area' = tributary/drainage polygons ("X Lake and tributaries"), which apply to any water inside them.
@@ -28,6 +29,7 @@ export interface OfflineData {
   lakes: (WaterPoly | { name: string; lines: Line[] })[];
   bay?: Line[][]; // San Francisco Bay District polygons (absent in older saves)
   coastalBays?: { name: string; rings: Line[] }[]; // other coastal bays and harbors (absent in older saves)
+  osmLakes?: OsmLake[]; // OpenStreetMap lake outlines (absent in older saves)
 }
 
 export interface SavedArea {
@@ -73,21 +75,23 @@ async function fetchRegs(b: BBox): Promise<{ features: RegFeature[]; rows: Attrs
 // area would give wrong answers offline.
 export async function fetchOffline(b: BBox): Promise<OfflineData> {
   const L = CONFIG.layers;
-  const [land, regs, lakes, bay, coastalBays] = await Promise.all([
+  const [land, regs, lakes, bay, coastalBays, osmLakes] = await Promise.all([
     arcFeatures(L.ownership.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0002', geometryPrecision: '5',
       outFields: 'Own_Level,Own_Group,Own_Agency' }, 10),
     fetchRegs(b),
     arcFeatures(L.waterBodies.url, { ...envelopeFor(b), where: "FTYPE LIKE '%Lake%' OR FTYPE LIKE '%Reservoir%'", maxAllowableOffset: '0.0001',
       geometryPrecision: '5', outFields: 'NAME,FTYPE,FCODE_DESC' }, 10),
     arcFeatures(L.sfBay.url, { ...envelopeFor(b), where: L.sfBay.where, maxAllowableOffset: '0.0002', geometryPrecision: '5', outFields: 'feat_desc' }),
-    arcFeatures(L.coastalBays.url, { ...envelopeFor(b), where: L.coastalBays.where, maxAllowableOffset: '0.0001', geometryPrecision: '5', outFields: 'Estuary_Name' })
+    arcFeatures(L.coastalBays.url, { ...envelopeFor(b), where: L.coastalBays.where, maxAllowableOffset: '0.0001', geometryPrecision: '5', outFields: 'Estuary_Name' }),
+    osmLakesIn(b)
   ]);
   return {
     bbox: b, regFeatures: regs.features, regRows: regs.rows,
     land: land.map(f => ({ rings: paths(f.geometry), attrs: f.attributes })),
     lakes: lakes.map(f => ({ rings: paths(f.geometry), attrs: f.attributes })),
     bay: bay.map(f => paths(f.geometry)),
-    coastalBays: coastalBays.map(f => ({ name: String(f.attributes.Estuary_Name), rings: paths(f.geometry) }))
+    coastalBays: coastalBays.map(f => ({ name: String(f.attributes.Estuary_Name), rings: paths(f.geometry) })),
+    osmLakes
   };
 }
 
@@ -111,6 +115,7 @@ export function offlineRaw(o: OfflineData, point: LatLng, zoom: number): Raw {
     waterBody: !lake ? [] : 'attrs' in lake ? [lake.attrs] : [{ NAME: lake.name, FTYPE: 'Lake/Pond' }],
     fed: [], parks: [], mpa: [],
     bay: (o.bay ?? []).filter(r => pointInPolygon(at, r)).map(() => ({})),
+    osmLake: (o.osmLakes ?? []).filter(l => pointInPolygon(at, l.rings)).slice(0, 1).map(l => ({ NAME: l.name })),
     coastalBay: (o.coastalBays ?? []).filter(c => pointInPolygon(at, c.rings)).map(c => ({ Estuary_Name: c.name })),
     nearBay: (o.bay ?? []).filter(r => nearestBetween([[at]], r, proj, BAY_POND_M) !== null || pointInPolygon(at, r)).map(() => ({})),
     geo: { address: { state: 'California' } }, // the area is inside California; there's no geocoder offline

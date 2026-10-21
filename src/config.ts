@@ -54,6 +54,8 @@ export const CONFIG = {
   counties: 'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Counties_Generalized_Boundaries/FeatureServer/0',
   // Place search index (towns + OSM-named lakes, streams, trails), built by `npm run build:places`; works offline.
   places: `${import.meta.env.BASE_URL}places.json`,
+  // OpenStreetMap lake outlines (`npm run build:lakes`): lake detection where Esri/NHD water bodies has none.
+  osmLakes: `${import.meta.env.BASE_URL}lakes`,
   // Optional "Report a problem" link shown in About (e.g. a public issues page or form). Empty = hidden.
   feedbackUrl: '',
 
@@ -61,6 +63,20 @@ export const CONFIG = {
   regs: {
     url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/ArcGIS/rest/services/regLinkFishing/FeatureServer',
     layers: { districts: 0, lakes: 1, streams: 2, tributary: 3, table: 8 }
+  },
+
+  // Estimated fishing pressure (lib/pressure.ts): proxies for how many people fish a spot.
+  pressure: {
+    // Caltrans All Roads: California's public road network (state, county, city, federal), not private roads.
+    roads: 'https://caltrans-gis.dot.ca.gov/arcgis/rest/services/CHhighway/All_Roads/FeatureServer/0',
+    // CDFW stocked waters (BIOS ds778, StockingWaterID) and the hatchery planting log (ds2897, by week).
+    stocked: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/biosds778_fpu/FeatureServer/0',
+    plantings: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/biosds2897_fmu/FeatureServer/0',
+    wilderness: 'https://services1.arcgis.com/ERdCHt0sNM6dENSD/arcgis/rest/services/Wilderness_Areas_in_the_United_States/FeatureServer/0',
+    // California Coastal Commission public access points; Forest Service campgrounds, trailheads, fishing and day-use sites.
+    coastalAccess: 'https://services9.arcgis.com/wwVnNW92ZHUIr0V0/arcgis/rest/services/AccessPoints/FeatureServer/0',
+    usfsSites: 'https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer/0',
+    usfsSitesWhere: "markeractivitygroup IN ('Camping & Cabins', 'Fishing', 'Picnicking', 'Trailhead', 'Water Activities')"
   },
 
   // Offline areas: max size per side (keeps the land and regulation downloads to a few MB).

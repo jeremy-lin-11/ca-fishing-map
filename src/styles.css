@@ -15,6 +15,9 @@ select{width:100%;padding:6px;border-radius:6px;border:1px solid #c5ccd3}
 #legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px;opacity:.8}
 .hint,.disclaimer{color:#57606a;font-size:12px}
 .card{background:#fff;border:1px solid #d0d7de;border-radius:8px;padding:10px 12px;margin:8px 0}
+.badge.pressure-low{background:#1a7f37}.badge.pressure-moderate{background:#9a6700}.badge.pressure-high{background:#8250df}
+.pressure-reasons{list-style:none;padding-left:0}
+.pressure-reasons span{display:inline-block;width:1.1em;font-size:11px;color:#57606a}
 .card h3{margin:0 0 4px;font-size:13px;color:#57606a;font-weight:600}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;font-weight:600;font-size:12px}
 .ok{background:#1a7f37}.warn{background:#bf8700}.no{background:#cf222e}.info{background:#6e7781}

@@ -7,6 +7,8 @@ import { FT_PER_M, M_PER_FATHOM, nearestRcaLines, sampleDem } from './depth';
 import { classifyLands, classifyOwnership, type LandUnit } from './land';
 import { buildGroups, lookupRegs, type RegGroup, type RegLookup } from './regdata';
 import { districtScope, summarizeGroup, troutRule, type RegSummary, type TroutRule } from './rules';
+import { estimatePressure, fetchPressure, type Pressure, type PressureRaw } from './pressure';
+import { osmLakeAt } from './osmLakes';
 
 export interface Analysis {
   point: LatLng;
@@ -19,6 +21,7 @@ export interface Analysis {
   depth: Note[];
   regs: { special: RegGroup[]; general: RegGroup[] } | null; // null for ocean
   trout: TroutRule | null;  // today's season and trout limit; null for ocean
+  pressure: Pressure | null; // estimated fishing pressure; null offline
   errors: string[];
 }
 
@@ -28,7 +31,9 @@ export interface Raw {
   fed: Attrs[] | null; parks: Attrs[] | null; mpa: Attrs[] | null;
   bay: Attrs[] | null; nearBay: Attrs[] | null; // San Francisco Bay District at the point / within BAY_POND_M
   coastalBay: Attrs[] | null; // other coastal bays and harbors (Estuary_Name)
+  osmLake?: Attrs[] | null;   // OpenStreetMap lake at the point (NAME); absent in older offline saves
   geo: any; dem: number | null; rca: Attrs[] | null; contours: Attrs[] | null; regs: RegLookup;
+  pressure?: PressureRaw; // absent offline
 }
 
 const settle = <T,>(p: Promise<T>) => p.catch(() => null);
@@ -54,9 +59,10 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
   const tol = 14 * 156543 * Math.cos(point.lat * Math.PI / 180) / Math.pow(2, zoom);
   const { layers: L, depth: D } = CONFIG;
   const salton = D.lakeContours[0];
-  const [own, waterBody, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs] = await Promise.all([
+  const [own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs, pressure] = await Promise.all([
     settle(queryPoint(L.ownership.url, point, { outFields: 'Own_Level,Own_Group,Own_Agency' })),
     settle(queryPoint(L.waterBodies.url, point, { outFields: 'NAME,FTYPE,FCODE_DESC' })),
+    settle(osmLakeAt(point)),
     settle(queryPoint(L.federal.url, point)),
     settle(queryPoint(L.parks.url, point, { where: L.parks.where })),
     settle(queryPoint(L.mpa.url, point)),
@@ -67,9 +73,10 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
     sampleDem(D.dem, point),
     settle(queryPoint(D.rca, point, { meters: 2000, outFields: 'feat_desc' })),
     settle(queryPoint(salton.url, point, { where: salton.where, meters: 400, outFields: salton.field })),
-    lookupRegs(CONFIG.regs, point, tol).catch((): RegLookup => ({ hits: [], rowsByCode: new Map(), failed: ['freshwater regulations'] }))
+    lookupRegs(CONFIG.regs, point, tol).catch((): RegLookup => ({ hits: [], rowsByCode: new Map(), failed: ['freshwater regulations'] })),
+    fetchPressure(point, tol)
   ]);
-  return { own, waterBody, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs };
+  return { own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs, pressure };
 }
 
 // Ownership (CAL FIRE) decides the land category; Esri federal/parks layers supply unit names when they agree.
@@ -111,7 +118,12 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
   const lands = landUnits(d.own, fed, parks);
   const land = lands[0];
   const pond = (d.waterBody ?? []).find(w => pondType(w));
-  const lake = (d.waterBody ?? []).find(w => /lake|reservoir/i.test(String(w.FTYPE ?? '')) && !pondType(w));
+  const nhdLake = (d.waterBody ?? []).find(w => /lake|reservoir/i.test(String(w.FTYPE ?? '')) && !pondType(w));
+  // NHD maps some reservoirs only as an unnamed "Inundation Area", and leaves many lakes unnamed: OpenStreetMap's
+  // lake outlines fill in (never in bays or on industrial ponds, where OSM water polygons aren't fishing lakes).
+  const osm = !pond && !d.bay?.length && !d.coastalBay?.length ? d.osmLake?.[0] : undefined;
+  const lake = nhdLake ? (String(nhdLake.NAME ?? '').trim() || !osm ? nhdLake : { ...nhdLake, NAME: osm.NAME })
+    : osm ? { NAME: osm.NAME, FTYPE: 'Lake/Pond' } : undefined;
 
   // Open-coast points fall outside every CDFW inland regulation area (even the §0.01 state boundary polygon)
   // and every county. Bays are inside inland district polygons, so bay outlines decide: San Francisco Bay's District
@@ -173,8 +185,9 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
     trout = troutToday(groups, water === 'lake' ? 'lake' : 'stream', today);
   }
 
+  const pressure = d.pressure ? estimatePressure(d.pressure, { catchAndRelease: trout?.daily === 0, today }) : null;
   return {
-    point, water, lands, landBadge, verdict, notes, regs, trout, errors,
+    point, water, lands, landBadge, verdict, notes, regs, trout, pressure, errors,
     county: d.geo?.address?.county || d.geo?.address?.city || '',
     depth: depthNotes(point, water, d)
   };

@@ -55,6 +55,22 @@ function Summary({ r }: { r: Analysis }) {
   );
 }
 
+const PRESSURE_LABEL = { low: 'Low', moderate: 'Moderate', high: 'High' } as const;
+
+// Only where fishing is allowed today: a crowd estimate for closed water would read as an invitation.
+function PressureCard({ p }: { p: NonNullable<Analysis['pressure']> }) {
+  return (
+    <Card title="Estimated fishing pressure">
+      <span className={`badge pressure-${p.level}`}>{PRESSURE_LABEL[p.level]}</span>
+      <ul className="pressure-reasons">
+        {p.reasons.map((x, i) => <li key={i}><span aria-label={x.effect > 0 ? 'more anglers' : 'fewer anglers'}>{x.effect > 0 ? '▲' : '▼'}</span> {x.text}</li>)}
+      </ul>
+      <p className="hint">An estimate from road access, people nearby, CDFW stocking and developed sites, not a count of anglers.
+        {p.missing.length > 0 && ` Couldn't load: ${p.missing.join(', ')}.`}</p>
+    </Card>
+  );
+}
+
 function Row({ row }: { row: ParsedRow }) {
   if (row.type === 'text') return <li>{row.heading && <b>{row.heading} </b>}{row.body}</li>;
   return (
@@ -130,6 +146,7 @@ export default function ResultPanel({ r }: { r: Analysis }) {
         <p className="hint">Change "Water type" above if this point is a {r.water === 'lake' ? 'stream' : 'lake'}; lakes and streams have different seasons.</p>
       </Card>
     )}
+    {r.pressure && r.verdict.status !== 'no' && r.trout?.open !== false && <PressureCard p={r.pressure} />}
     <Fold title="Depth"><ul>{r.depth.map((n, i) => <NoteItem key={i} n={n} />)}</ul></Fold>
     {r.regs && <RegCards regs={r.regs} />}
     <Fold title={`${w.title} – general summary${r.county ? ` – ${r.county}` : ''}`}>
