@@ -190,7 +190,9 @@ omitted, and malformed or retired parts (the old route-search `tab`, `f`, `route
 
 `src/posthog.ts` sends anonymous usage events to PostHog in production builds only (never `npm run dev`).
 Examples: `fishing_check_answered` with water type, verdict and pressure level, `offline_area_saved`,
-`shared_link_copied`, `place_selected` with the place kind, and `locate_used`. Events carry names and categories
+`shared_link_copied`, `shared_link_opened` (which parts the link had, not their values), `place_selected` with
+the place kind, and `locate_used`. Every event carries `entry` (`shared_link` or `direct`), and a shared-link visit's page
+URL is shown as `…/ca-fishing-map/#shared-link` (the marker replaces the coordinates). Events carry names and categories
 only:
 - no coordinates, place names or search text;
 - no autocapture and no session replay;
