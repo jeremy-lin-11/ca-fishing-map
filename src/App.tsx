@@ -6,6 +6,7 @@ import { areaFor, checkSaveArea, fetchOffline, offlineRaw, type SavedArea } from
 import { deleteArea, listAreas, putArea } from './lib/areaStore';
 import { cacheTiles, tileUrls, uncacheTiles } from './lib/tiles';
 import { decodeState, encodeState } from './lib/urlState';
+import type { ReportContext } from './lib/report';
 import type { BBox } from './lib/geo';
 import type { LatLng, WaterSelection } from './types';
 import MapView from './components/MapView';
@@ -134,6 +135,17 @@ export default function App() {
 
   // Re-interpret instantly when the water type changes; no refetch needed.
   const result = useMemo(() => (point && raw ? interpret(point, water, raw) : null), [point, raw, water]);
+  // What the user is looking at, for a problem report (the report form decides what's sent; see lib/report.ts).
+  const reportContext = useCallback((): ReportContext => {
+    const hash = encodeState({ map: mapView ?? undefined, point: point ?? undefined, water, overlays: visible, mapLand }, { overlays: defaultVisible });
+    return {
+      point, view: mapView, link: `${window.location.origin}${window.location.pathname}${hash ? `#${hash}` : ''}`, result,
+      waterSelection: water, layers: OVERLAYS.filter(o => visible[o.id]).map(o => o.id), basemap, online,
+      offlineArea: offlineFrom?.name ?? null, version: __APP_VERSION__, userAgent: navigator.userAgent,
+      screen: `${window.innerWidth}x${window.innerHeight}`
+    };
+  }, [point, mapView, water, visible, mapLand, result, basemap, online, offlineFrom]);
+
   // One usage event per answered point (not again when only the water type changes): categories, no location.
   const tracked = useRef<LatLng | null>(null);
   useEffect(() => {
@@ -147,7 +159,7 @@ export default function App() {
     <div id="app">
       <Sidebar sheet={sheet} onSheet={setSheet}
         water={water} onWater={setWater} onFly={setFlyTarget} loading={loading} result={result} notice={notice}
-        online={online} offlineFrom={offlineFrom} near={mapView ?? undefined} onShareLink={shareLink}
+        online={online} offlineFrom={offlineFrom} near={mapView ?? undefined} onShareLink={shareLink} reportContext={reportContext}
         offline={{ online, areas, saving, error: saveError, onSave: onSaveArea, onShow: onShowArea, onDelete: onDeleteArea }} />
       <div id="mapwrap">
       <ErrorBoundary name="map">

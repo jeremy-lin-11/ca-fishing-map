@@ -57,3 +57,22 @@ export function track(event: string, props?: Record<string, string | number | bo
   if (client) client.capture(event, props);
   else queue.push([event, props]);
 }
+
+// "Report a problem" (lib/report.ts): sent straight to PostHog's capture API, not through posthog-js, so success is
+// known: ad blockers often block PostHog's requests, and then the form offers the report to copy instead. Works in
+// development too (tagged env: development) so the form can be tried locally. Location fields are present only when
+// the reporter chose to share them.
+export async function sendReport(report: Record<string, unknown>): Promise<boolean> {
+  if (!posthogKey || !posthogHost) return false;
+  const shared = report.location_shared === true;
+  try {
+    const res = await fetch(`${posthogHost.replace(/\/$/, '')}/capture/`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: posthogKey, event: 'bug_report', distinct_id: client?.get_distinct_id() ?? 'problem-report',
+        properties: { ...report, env: import.meta.env.MODE, $current_url: shared ? window.location.href : stripUrl(window.location.href) }
+      })
+    });
+    return res.ok;
+  } catch { return false; }
+}

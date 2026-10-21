@@ -8,6 +8,8 @@ import PlaceSearch from './PlaceSearch';
 import About, { IOSInstallTip } from './About';
 import ErrorBoundary from './ErrorBoundary';
 import OfflineAreas, { type OfflineProps } from './OfflineAreas';
+import ReportProblem from './ReportProblem';
+import type { ReportContext } from '../lib/report';
 import { track } from '../posthog';
 
 // On narrow screens the sidebar is a bottom sheet over a full-screen map: just the search and tabs, half or most of the screen.
@@ -58,6 +60,7 @@ interface Props {
   onWater: (w: WaterSelection) => void;
   onFly: (p: LatLng & { zoom?: number }) => void;
   onShareLink: () => string; // current view's link; also puts it in the address bar
+  reportContext: () => ReportContext;
   near?: LatLng;
   loading: boolean;
   result: Analysis | null;
@@ -76,14 +79,19 @@ function CopyLink({ link }: { link: () => string }) {
   return <button type="button" className="copylink" onClick={copy} title="Copy a link to this view">{copied ? 'Copied!' : 'Copy link'}</button>;
 }
 
-export default function Sidebar({ onShareLink, notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
+export default function Sidebar({ onShareLink, reportContext, notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
   const panel = useRef<HTMLElement>(null);
+  const [reporting, setReporting] = useState(false);
+  const report = () => { track('report_opened'); setReporting(true); };
   return (
     <aside id="panel" ref={panel} data-sheet={sheet}>
       <SheetHandle sheet={sheet} onSheet={onSheet} panel={panel} />
       <div className="titlebar">
         <h1>Can I Fish Here? <span className="subtitle">California</span></h1>
-        <CopyLink link={onShareLink} />
+        <div className="titlebar-actions">
+          <button type="button" className="copylink" onClick={report} title="Report a wrong answer or a problem with the map">Report</button>
+          <CopyLink link={onShareLink} />
+        </div>
       </div>
       <PlaceSearch onFly={onFly} near={near} />
 
@@ -103,10 +111,12 @@ export default function Sidebar({ onShareLink, notice, online, offlineFrom, near
           Land owners are shown by agency; depth and place names need a connection.</p>}
         {notice && <p className="err">{notice}</p>}
         {loading ? <p className="loading">Checking land status and regulations…</p>
-          : result ? <ErrorBoundary name="fishing check" key={`${result.point.lat},${result.point.lng}`}><ResultPanel r={result} /></ErrorBoundary>
+          : result ? <ErrorBoundary name="fishing check" key={`${result.point.lat},${result.point.lng}`}><ResultPanel r={result} />
+            <p className="hint">Something wrong with this answer? <button type="button" className="linkbtn" onClick={report}>Report it</button></p></ErrorBoundary>
           : <p className="hint">Tap or click anywhere on the map to see land status, whether fishing is legal there, and special regulations.</p>}
       </section>
       <OfflineAreas {...offline} />
+      {reporting && <ReportProblem context={reportContext} onClose={() => setReporting(false)} />}
       <IOSInstallTip />
       <About />
       <p className="disclaimer">Informational only. Regulations change and many waters have special rules. Always confirm in the current{' '}

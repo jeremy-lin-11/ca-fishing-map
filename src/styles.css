@@ -61,6 +61,13 @@ details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weig
 .suggestions li.active{background:#ddf4ff}
 .modal-backdrop{position:fixed;inset:0;background:rgba(28,38,48,.55);display:flex;align-items:center;justify-content:center;z-index:5000;padding:16px}
 .modal{background:#fff;border-radius:10px;max-width:520px;padding:18px 20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.titlebar-actions{display:flex;gap:6px}
+.modal.report{width:min(520px,100%);max-height:calc(100dvh - 32px);overflow:auto}
+.modal.report .field{display:block;margin:8px 0;font-size:13px;color:#57606a}
+.modal.report select,.modal.report textarea,.modal.report input[type=email]{display:block;width:100%;margin-top:3px;padding:6px;border:1px solid #c5ccd3;border-radius:6px;font:inherit;color:#1c2630}
+.modal.report .check{display:flex;gap:6px;align-items:flex-start;margin:8px 0;font-size:13px}
+.modal.report .row{display:flex;gap:8px;align-items:center;margin-top:10px}
+.report-preview{white-space:pre-wrap;font-size:11px;background:#f6f8fa;padding:6px;border-radius:6px;max-height:180px;overflow:auto}
 .modal h2{margin:0 0 8px;font-size:18px;color:#1c2630;text-transform:none;letter-spacing:0}
 .about summary{cursor:pointer;font-weight:600}
 .about ul{padding-left:18px}

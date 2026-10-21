@@ -53,6 +53,8 @@ connection. That's useful in the backcountry, where there usually isn't any.
 **Shareable.** "Copy link" gives you a link to exactly what you're looking at (the map view, the spot you checked and
 your layers) to send to someone.
 
+**Report a problem.** If an answer looks wrong, tap **Report**. You can include the spot so it can be checked.
+
 **Install it** like an app from your phone's browser ("Add to Home Screen").
 
 ### Important
@@ -193,6 +195,12 @@ only:
 - no coordinates, place names or search text;
 - no autocapture and no session replay;
 - URL fragments (`#map=…&pt=…`) are cut in `before_send`.
+
+**Problem reports** (`lib/report.ts`, `components/ReportProblem.tsx`) go to PostHog as `bug_report` events. A report
+carries the reporter's notes and optional email, the answer they saw, app version and browser. The tapped point,
+map view and a reopening link are included only if they keep "Include this map location" checked; the form shows
+exactly what's sent. Reports POST straight to the capture API, so a blocked request is detected and the form offers
+the report to copy instead. Read them in PostHog under Activity, filtered by event `bug_report`.
 
 PostHog loads in its own chunk after the page is up, so it doesn't delay the map. Ad blockers simply turn it off.
 The public project key is in `.env.production`.
