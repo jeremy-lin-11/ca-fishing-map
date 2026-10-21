@@ -56,30 +56,32 @@ interface Props {
   water: WaterSelection;
   onWater: (w: WaterSelection) => void;
   onFly: (p: LatLng & { zoom?: number }) => void;
+  onShareLink: () => string; // current view's link; also puts it in the address bar
   near?: LatLng;
   loading: boolean;
   result: Analysis | null;
 }
 
 
-// The URL always reflects the current view, filters and selection (see lib/urlState.ts).
-function CopyLink() {
+// Builds a link to the current view, point and layers (see lib/urlState.ts); the address bar updates only then.
+function CopyLink({ link }: { link: () => string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-    catch { window.prompt('Copy this link:', window.location.href); }
+    const url = link();
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    catch { window.prompt('Copy this link:', url); }
   };
   return <button type="button" className="copylink" onClick={copy} title="Copy a link to this view">{copied ? 'Copied!' : 'Copy link'}</button>;
 }
 
-export default function Sidebar({ notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
+export default function Sidebar({ onShareLink, notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
   const panel = useRef<HTMLElement>(null);
   return (
     <aside id="panel" ref={panel} data-sheet={sheet}>
       <SheetHandle sheet={sheet} onSheet={onSheet} panel={panel} />
       <div className="titlebar">
         <h1>Can I Fish Here? <span className="subtitle">California</span></h1>
-        <CopyLink />
+        <CopyLink link={onShareLink} />
       </div>
       <PlaceSearch onFly={onFly} near={near} />
 

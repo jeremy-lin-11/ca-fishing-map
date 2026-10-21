@@ -50,8 +50,8 @@ charts. You can search for a town or lake, or jump to your current location.
 **Works without signal.** Before a trip, save a map area. Inside it, fishing checks still work with no
 connection. That's useful in the backcountry, where there usually isn't any.
 
-**Shareable.** The page address always matches what you're looking at, so you can send someone a link to the
-exact spot you checked.
+**Shareable.** "Copy link" gives you a link to exactly what you're looking at (the map view, the spot you checked and
+your layers) to send to someone.
 
 **Install it** like an app from your phone's browser ("Add to Home Screen").
 
@@ -180,9 +180,9 @@ stale while online. Areas saved by earlier versions, which stored OpenStreetMap 
 
 ### Shareable links
 
-`lib/urlState.ts`. The URL fragment holds the view, the tapped point, water type, layers and land types, updated
-with `replaceState`. Opening a link re-runs its check. Defaults are omitted, and malformed or retired parts (the old
-route-search `tab`, `f`, `route`) are ignored.
+`lib/urlState.ts`. **Copy link** encodes the view, the tapped point, water type, layers and land types into the URL
+fragment, and only then puts it in the address bar (`replaceState`). Opening a link re-runs its check. Defaults are
+omitted, and malformed or retired parts (the old route-search `tab`, `f`, `route`) are ignored.
 
 ### Data sources and why
 

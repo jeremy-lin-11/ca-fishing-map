@@ -111,14 +111,12 @@ export default function App() {
     if (shared.point) checkPoint(shared.point, zoom);
   }, [checkPoint]);
 
-  // Keep the URL in sync so it can be copied and shared at any time (replaceState: no history spam).
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const hash = encodeState({ map: mapView ?? undefined, point: point ?? undefined, water, overlays: visible, mapLand },
-        { overlays: defaultVisible });
-      if (hash !== window.location.hash.slice(1)) window.history.replaceState(null, '', hash ? `#${hash}` : window.location.pathname);
-    }, 300);
-    return () => clearTimeout(t);
+  // The URL changes only when the user copies a link: then it's set to the current view (replaceState: no history).
+  const shareLink = useCallback(() => {
+    const hash = encodeState({ map: mapView ?? undefined, point: point ?? undefined, water, overlays: visible, mapLand },
+      { overlays: defaultVisible });
+    window.history.replaceState(null, '', hash ? `#${hash}` : window.location.pathname);
+    return window.location.href;
   }, [mapView, point, water, visible, mapLand]);
 
   // A different link pasted into this tab: start from it. (Our own replaceState updates don't fire hashchange.)
@@ -135,7 +133,7 @@ export default function App() {
     <div id="app">
       <Sidebar sheet={sheet} onSheet={setSheet}
         water={water} onWater={setWater} onFly={setFlyTarget} loading={loading} result={result} notice={notice}
-        online={online} offlineFrom={offlineFrom} near={mapView ?? undefined}
+        online={online} offlineFrom={offlineFrom} near={mapView ?? undefined} onShareLink={shareLink}
         offline={{ online, areas, saving, error: saveError, onSave: onSaveArea, onShow: onShowArea, onDelete: onDeleteArea }} />
       <div id="mapwrap">
       <ErrorBoundary name="map">
