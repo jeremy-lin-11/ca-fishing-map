@@ -8,6 +8,7 @@ import PlaceSearch from './PlaceSearch';
 import About, { IOSInstallTip } from './About';
 import ErrorBoundary from './ErrorBoundary';
 import OfflineAreas, { type OfflineProps } from './OfflineAreas';
+import { track } from '../posthog';
 
 // On narrow screens the sidebar is a bottom sheet over a full-screen map: just the search and tabs, half or most of the screen.
 export type Sheet = 'min' | 'half' | 'full';
@@ -67,6 +68,7 @@ interface Props {
 function CopyLink({ link }: { link: () => string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
+    track('shared_link_copied');
     const url = link();
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }
     catch { window.prompt('Copy this link:', url); }
@@ -87,7 +89,7 @@ export default function Sidebar({ onShareLink, notice, online, offlineFrom, near
 
       <section>
         <h2>Water type at clicked point</h2>
-        <select value={water} onChange={e => onWater(e.target.value as WaterSelection)}>
+        <select value={water} onChange={e => { const waterType = e.target.value as WaterSelection; track('water_type_changed', { water_type: waterType }); onWater(waterType); }}>
           <option value="auto">Auto-detect</option>
           <option value="stream">Inland stream / river</option>
           <option value="lake">Lake / reservoir</option>

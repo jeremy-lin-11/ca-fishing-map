@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Circle, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { inCalifornia } from '../lib/california';
+import { track } from '../posthog';
 
 interface Fix { lat: number; lng: number; accuracy: number }
 
@@ -46,10 +47,12 @@ export default function LocateControl() {
       setBusy(false);
       const f = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy };
       setFix(f);
+      track('locate_used', { result: 'ok', in_california: inCalifornia(f) });
       if (!inCalifornia(f)) setMsg('You appear to be outside California; this map only covers California.');
       map.setView([f.lat, f.lng], Math.max(map.getZoom(), 13));
     }, e => {
       setBusy(false);
+      track('locate_used', { result: e.code === 1 ? 'denied' : e.code === 3 ? 'timeout' : 'unavailable' });
       setMsg(ERRORS[e.code] ?? "Couldn't get your location.");
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
   };

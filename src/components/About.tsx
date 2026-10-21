@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CONFIG } from '../config';
 import { LINKS } from '../regs';
+import { track } from '../posthog';
 
 const ACCEPTED_KEY = 'disclaimer-accepted-v1';
 const IOS_TIP_KEY = 'ios-install-tip-v1';
@@ -39,7 +40,7 @@ export function DisclaimerGate() {
       <div className="modal">
         <h2 id="disclaimer-title">Before you use this map</h2>
         <Disclaimer />
-        <button type="button" onClick={() => { try { localStorage.setItem(ACCEPTED_KEY, '1'); } catch { /* private mode */ } setAccepted(true); }}>
+        <button type="button" onClick={() => { try { localStorage.setItem(ACCEPTED_KEY, '1'); } catch { /* private mode */ } track('disclaimer_accepted'); setAccepted(true); }}>
           I understand</button>
       </div>
     </div>
@@ -67,7 +68,9 @@ export default function About() {
       <ul>{SOURCES.map(([what, who, href]) => <li key={what}>{what}: <a target="_blank" rel="noopener" href={href}>{who}</a></li>)}</ul>
       <p className="hint">The trail, lake and stream data is extracted from OpenStreetMap and is available under the{' '}
         <a target="_blank" rel="noopener" href="https://opendatacommons.org/licenses/odbl/">Open Database License</a>.
-        This app doesn't use cookies or tracking; saved offline areas stay on your device.</p>
+        This app doesn't use cookies. It counts anonymous usage (e.g. how many fishing checks are run, and with which
+        water type) with PostHog, but never sends where you tap, your location, place names or searches. Saved offline
+        areas stay on your device.</p>
       {CONFIG.feedbackUrl && <p><a target="_blank" rel="noopener" href={CONFIG.feedbackUrl}>Report a problem or a wrong regulation</a></p>}
     </details>
   );

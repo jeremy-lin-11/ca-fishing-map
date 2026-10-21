@@ -184,6 +184,19 @@ stale while online. Areas saved by earlier versions, which stored OpenStreetMap 
 fragment, and only then puts it in the address bar (`replaceState`). Opening a link re-runs its check. Defaults are
 omitted, and malformed or retired parts (the old route-search `tab`, `f`, `route`) are ignored.
 
+### Usage analytics
+
+`src/posthog.ts` sends anonymous usage events to PostHog in production builds only (never `npm run dev`).
+Examples: `fishing_check_answered` with water type, verdict and pressure level, `offline_area_saved`,
+`shared_link_copied`, `place_selected` with the place kind, and `locate_used`. Events carry names and categories
+only:
+- no coordinates, place names or search text;
+- no autocapture and no session replay;
+- URL fragments (`#map=…&pt=…`) are cut in `before_send`.
+
+PostHog loads in its own chunk after the page is up, so it doesn't delay the map. Ad blockers simply turn it off.
+The public project key is in `.env.production`.
+
 ### Data sources and why
 
 | Need | Source | Why this one |

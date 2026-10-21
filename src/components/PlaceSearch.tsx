@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { loadPlaces, searchPlaces, zoomFor, type Place, type PlaceHit } from '../lib/places';
 import type { LatLng } from '../types';
+import { track } from '../posthog';
 
 const KIND_LABEL = { town: 'Town', lake: 'Lake', stream: 'Stream', trail: 'Trail' } as const;
 
@@ -23,7 +24,7 @@ export default function PlaceSearch({ onFly, near }: { onFly: (p: LatLng & { zoo
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const choose = (h: PlaceHit) => { onFly({ lat: h.lat, lng: h.lng, zoom: zoomFor(h.kind) }); setQ(h.name); setOpen(false); };
+  const choose = (h: PlaceHit) => { track('place_selected', { place_kind: h.kind }); onFly({ lat: h.lat, lng: h.lng, zoom: zoomFor(h.kind) }); setQ(h.name); setOpen(false); };
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, hits.length - 1)); setOpen(true); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }

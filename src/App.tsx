@@ -15,6 +15,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { DisclaimerGate } from './components/About';
 import { ALL_LAND } from './lib/land';
 import type { AgencyKey } from './regs';
+import { track } from './posthog';
 
 const defaultVisible = Object.fromEntries(OVERLAYS.map(o => [o.id, o.defaultOn])) as Record<OverlayId, boolean>;
 // State from a shared link (read once, at load).
@@ -66,7 +67,10 @@ export default function App() {
     setRaw(data); setLoading(false);
   }, []);
 
-  const onMapClick = checkPoint;
+  const onMapClick = (p: LatLng, zoom: number) => {
+    track('fishing_check_requested', { online: navigator.onLine });
+    checkPoint(p, zoom);
+  };
 
   // Save the current map view (land, regulations, lakes and basemap tiles) for offline use.
   const onSaveArea = useCallback(async (name: string) => {
@@ -84,6 +88,7 @@ export default function App() {
       const tileBytes = await cacheTiles(urls, (done, total) => setSaving(s => s && { ...s, done, total }));
       await navigator.storage?.persist?.(); // ask the browser not to evict saved areas under storage pressure
       await putArea({ id: crypto.randomUUID(), name: name.trim() || 'Saved area', bbox, savedAt: new Date().toISOString(), offline, tiles: urls, tileBytes });
+      track('offline_area_saved');
       refreshAreas();
     } catch (e) {
       setSaveError(`Saving failed: ${(e as Error).message}`);
@@ -98,6 +103,7 @@ export default function App() {
     const keep = new Set(areasRef.current.filter(x => x.id !== a.id).flatMap(x => x.tiles)); // tiles shared with other areas stay
     await uncacheTiles(a.tiles, keep).catch(() => {});
     await deleteArea(a.id);
+    track('offline_area_deleted');
     refreshAreas();
   }, [refreshAreas]);
 
@@ -128,6 +134,14 @@ export default function App() {
 
   // Re-interpret instantly when the water type changes; no refetch needed.
   const result = useMemo(() => (point && raw ? interpret(point, water, raw) : null), [point, raw, water]);
+  // One usage event per answered point (not again when only the water type changes): categories, no location.
+  const tracked = useRef<LatLng | null>(null);
+  useEffect(() => {
+    if (!result || result.point === tracked.current) return;
+    tracked.current = result.point;
+    track('fishing_check_answered', { water: result.water, verdict: result.verdict.status, pressure: result.pressure?.level ?? null,
+      source: offlineFrom ? 'offline_cache' : 'network', load_errors: result.errors.length });
+  }, [result, offlineFrom]);
 
   return (
     <div id="app">
@@ -140,7 +154,8 @@ export default function App() {
       <MapView basemap={basemap} visible={visible} mapLand={mapLand} marker={point} flyTarget={flyTarget} onClick={onMapClick}
         initialView={shared.map} onView={onView} />
       </ErrorBoundary>
-      <MapLayers basemap={basemap} onBasemap={setBasemap} visible={visible} onToggle={id => setVisible(v => ({ ...v, [id]: !v[id] }))}
+      <MapLayers basemap={basemap} onBasemap={b => { setBasemap(b); track('basemap_selected', { basemap: b }); }}
+        visible={visible} onToggle={id => { track('map_overlay_toggled', { overlay: id, enabled: !visible[id] }); setVisible(v => ({ ...v, [id]: !v[id] })); }}
         mapLand={mapLand} onMapLand={setMapLand} />
       </div>
       <DisclaimerGate />
