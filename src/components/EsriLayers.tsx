@@ -28,7 +28,7 @@ interface FeatureProps {
 // the odd level a cell is twice the pixels over the same ground, simplified the same, so its query is identical and
 // comes from the response cache in pbfQuery.ts. Queries are protobuf, about a third of the bytes of gzipped GeoJSON.
 //
-// Overrides esri-leaflet 3.0.19 internals (FeatureGrid._isValidCell, getCellSize, _cellCoordsToNwSe,
+// Overrides esri-leaflet 3.0.19 internals (FeatureGrid._isValidCell, _update, getCellSize, _cellCoordsToNwSe,
 // FeatureManager._buildQuery, Query.run); see README.
 const cellBox = (b: L.LatLngBounds) => ({ south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() });
 const pairZoom = (z: number) => z - (z % 2);
@@ -38,18 +38,28 @@ const tolerance = (z: number) => (0.5 * 360) / (256 * 2 ** pairZoom(z));
 // One quantization grid for all cells, so features split across neighbouring cells line up exactly.
 const QUANT_EXTENT = { xmin: -125, ymin: 32, xmax: -114, ymax: 42.5, spatialReference: { wkid: 4326 } };
 const base = (esri.FeatureLayer as any).prototype;
-const CaliforniaFeatureLayer = (esri.FeatureLayer as any).extend({
+export const CaliforniaFeatureLayer = (esri.FeatureLayer as any).extend({
   _isValidCell(coords: L.Coords) {
     return base._isValidCell.call(this, coords) && boxTouchesCalifornia(cellBox(this._cellCoordsToBounds(coords)));
   },
+  // A view reset (a jump too far to pan, e.g. to a saved area) clears the grid's zoom and fires `move` before
+  // restoring it; esri-leaflet would then lay out cells with no zoom (cell size NaN -> "Invalid LatLng"). The reset
+  // rebuilds the grid right after, so skip that update.
+  _update(center?: L.LatLng) {
+    if (!Number.isFinite(this._cellZoom)) return;
+    return base._update.call(this, center);
+  },
   getCellSize() {
-    const s = cellPx(this._cellZoom ?? Math.round(this._map.getZoom()));
+    const s = cellPx(this.zoomOr(this._cellZoom));
     return L.point(s, s);
   },
   // Per cell, since cells left over from the previous zoom level are a different size.
   _cellCoordsToNwSe(coords: L.Coords) {
-    const s = cellPx(coords.z), nw = L.point(coords.x * s, coords.y * s);
-    return [this._map.unproject(nw, coords.z), this._map.unproject(nw.add([s, s]), coords.z)];
+    const z = this.zoomOr(coords.z), s = cellPx(z), nw = L.point(coords.x * s, coords.y * s);
+    return [this._map.unproject(nw, z), this._map.unproject(nw.add([s, s]), z)];
+  },
+  zoomOr(z: number | undefined) {
+    return Number.isFinite(z) ? z! : Math.round(this._map.getZoom());
   },
   _buildQuery(bounds: L.LatLngBounds, offset?: number) {
     const query = base._buildQuery.call(this, bounds, offset);

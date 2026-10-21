@@ -267,7 +267,7 @@ public/
 
 **Pinned internals:** esri-leaflet is pinned to 3.0.19. `EsriLayers.tsx` overrides these private methods:
 - `_isValidCell` and `_buildQuery`: skip or clip cells outside California;
-- `getCellSize` and `_cellCoordsToNwSe`: share cells across zoom pairs;
+- `getCellSize` and `_cellCoordsToNwSe`: share cells across zoom pairs (and `_update`, skipped mid view-reset);
 - `Query.run`: replaced with the protobuf query.
 
 `CaliforniaClip.tsx` also uses Leaflet's private `_latLngToNewLayerPoint`. Re-check all of these before upgrading.
