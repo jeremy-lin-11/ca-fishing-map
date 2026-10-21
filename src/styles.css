@@ -116,6 +116,7 @@ details.more .linkbtn{margin:0 0 0 auto;width:auto;font-size:12px}
   #panel[data-sheet=full]{height:calc(100dvh - 48px)}
   .sheet-handle{display:flex;justify-content:center;position:sticky;top:0;z-index:2;width:calc(100% + 24px);margin:0 -12px 2px;padding:9px 0 7px;
     background:#f6f8fa;border-radius:14px 14px 0 0;touch-action:none;cursor:grab}
+  .results{scroll-margin-top:30px} /* below the sticky handle when scrolled into view */
   .sheet-handle span{width:40px;height:5px;border-radius:3px;background:#afb8c1}
   h1{font-size:16px}
   .titlebar{margin-bottom:8px}

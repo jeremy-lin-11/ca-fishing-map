@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { CONFIG } from '../config';
 import MoreFilters from './MoreFilters';
+import { useReveal } from './useReveal';
 import { DEFAULT_SHORE_FILTERS, ROCK_LABEL, type Difficulty, type RockKind, type ShoreFilters, type ShoreSpot } from '../lib/shore';
 
 interface Props {
@@ -81,6 +82,7 @@ export default function ShorePanel({ filters: f, onFilters, onSearch, loading, e
   const set = <K extends keyof ShoreFilters>(k: K, v: ShoreFilters[K]) => onFilters({ ...f, [k]: v });
   const changed = MORE.filter(k => f[k] !== DEFAULT_SHORE_FILTERS[k]).length;
   const reset = () => onFilters({ ...f, ...Object.fromEntries(MORE.map(k => [k, DEFAULT_SHORE_FILTERS[k]])) });
+  const results = useReveal(loading, error);
   const toggleDiff = (d: Difficulty) => set('difficulty', f.difficulty.includes(d) ? f.difficulty.filter(x => x !== d) : [...f.difficulty, d]);
   return (
     <section>
@@ -108,6 +110,7 @@ export default function ShorePanel({ filters: f, onFilters, onSearch, loading, e
         </label>
         <button disabled={loading}>{loading ? 'Searching…' : spots ? 'Search this map view' : 'Find shore spots'}</button>
       </form>
+      <div ref={results} className="results">
       {loading && <p className="loading">Checking shoreline, access points, MPAs and bluff heights…</p>}
       {error && <p className="err">{error}</p>}
       {spots && !loading && <>
@@ -121,6 +124,7 @@ export default function ShorePanel({ filters: f, onFilters, onSearch, loading, e
           conditions change. Trail access means a mapped OpenStreetMap trail reaches within 150 m of the rocks on public land; it may
           end at a viewpoint. Judge the descent yourself.</p>
       </>}
+      </div>
       <RockfishRules />
     </section>
   );

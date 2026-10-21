@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { CircleMarker, Polyline, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import type { Route, WaterAccess } from '../lib/trails';
 import type { Line } from '../lib/geo';
+import { useFitOnPick } from './useFitOnPick';
 
 const STATUS_COLOR = { ok: '#1a7f37', warn: '#bf8700', no: '#cf222e' } as const;
 const toLatLngs = (lines: Line[]) => lines.map(l => l.map(([lng, lat]) => [lat, lng] as [number, number]));
@@ -10,15 +10,14 @@ const toLatLngs = (lines: Line[]) => lines.map(l => l.map(([lng, lat]) => [lat, 
 interface Props { routes: Route[]; selectedId: string | null; onSelect: (id: string) => void; onCheckWater: (w: WaterAccess) => void }
 
 export default function RouteLayers({ routes, selectedId, onSelect, onCheckWater }: Props) {
-  const map = useMap();
   const selected = routes.find(r => r.id === selectedId) ?? null;
 
-  useEffect(() => {
-    if (!selected) return;
+  useFitOnPick(selectedId, () => {
+    if (!selected) return null;
     const b = L.latLngBounds(toLatLngs(selected.lines).flat());
     selected.waters.forEach(w => b.extend([w.at[1], w.at[0]]));
-    map.fitBounds(b, { padding: [40, 40], maxZoom: 15 });
-  }, [map, selected]);
+    return b;
+  }, { padding: [40, 40], maxZoom: 15 });
 
   return <>
     {routes.filter(r => r.id !== selectedId).map(r => (

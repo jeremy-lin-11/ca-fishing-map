@@ -6,6 +6,7 @@ import RegsFreshness from './RegsFreshness';
 import LandTypePicker from './LandTypePicker';
 import OfflineAreas, { type OfflineProps } from './OfflineAreas';
 import MoreFilters from './MoreFilters';
+import { useReveal } from './useReveal';
 
 interface Props {
   filters: RouteFilters;
@@ -84,6 +85,7 @@ export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, 
   const num = (k: 'minMiles' | 'maxMiles' | 'maxWaterMeters') => (e: { target: { value: string } }) => set(k, Math.max(0, Number(e.target.value) || 0));
   const changed = moreChanged(f);
   const reset = () => onFilters({ ...f, ...Object.fromEntries(MORE.map(k => [k, DEFAULT_FILTERS[k]])) });
+  const results = useReveal(loading, error);
   return (
     <section>
       <form className="routeform" onSubmit={e => { e.preventDefault(); onSearch(); }}>
@@ -138,6 +140,7 @@ export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, 
       </form>
       <OfflineAreas {...offline} />
 
+      <div ref={results} className="results">
       {loading && <p className="loading">Fetching trails, lakes, streams, land and regulations…</p>}
       {error && <p className="err">{error}</p>}
       {result && !loading && <>
@@ -156,6 +159,7 @@ export default function RoutesPanel({ filters: f, onFilters, onSearch, loading, 
           Whether a stream is anadromous isn't mapped, so anadromous-water rules show as warnings. Check trailhead access, wilderness
           permits, closures and the full regulation text (tap a water) before you go.</p>
       </>}
+      </div>
     </section>
   );
 }

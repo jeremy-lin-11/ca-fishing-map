@@ -213,7 +213,7 @@ export default function App() {
         initialView={shared.map} onView={onView}
         routes={tab === 'routes' ? routes?.routes ?? [] : []} selectedRoute={selectedRoute}
         onSelectRoute={setSelectedRoute} onCheckWater={onCheckWater}
-        shore={tab === 'shore' ? { result: shoreResult, spots: shoreSpots ?? [], selectedId: selectedSpot, onSelect: setSelectedSpot } : null} />
+        shore={{ result: tab === 'shore' ? shoreResult : null, spots: tab === 'shore' ? shoreSpots ?? [] : [], selectedId: selectedSpot, onSelect: setSelectedSpot }} />
       </ErrorBoundary>
       <MapLayers basemap={basemap} onBasemap={setBasemap} visible={visible} onToggle={id => setVisible(v => ({ ...v, [id]: !v[id] }))}
         mapLand={mapLand} onMapLand={setMapLand} />

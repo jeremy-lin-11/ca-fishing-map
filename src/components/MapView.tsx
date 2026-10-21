@@ -78,7 +78,7 @@ interface Props {
   selectedRoute: string | null;
   onSelectRoute: (id: string) => void;
   onCheckWater: (w: WaterAccess) => void;
-  shore: { result: ShoreResult | null; spots: ShoreSpot[]; selectedId: string | null; onSelect: (id: string) => void } | null;
+  shore: { result: ShoreResult | null; spots: ShoreSpot[]; selectedId: string | null; onSelect: (id: string) => void }; // empty off the Shore tab
 }
 
 export default function MapView({ basemap, visible, mapLand, marker, flyTarget, onClick, onView, initialView, routes, selectedRoute, onSelectRoute, onCheckWater, shore }: Props) {
@@ -124,7 +124,7 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
       <Polyline positions={STATE_LINE} interactive={false} pathOptions={{ color: '#57606a', weight: 1.5, opacity: 0.8 }} />
       <Pane name="routes" style={{ zIndex: 460 }}>
         <RouteLayers routes={routes} selectedId={selectedRoute} onSelect={onSelectRoute} onCheckWater={onCheckWater} />
-        {shore && <ShoreLayers {...shore} />}
+        <ShoreLayers {...shore} />
         <CaliforniaClip pane="routes" />
       </Pane>
 
@@ -132,7 +132,7 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
       <ClickHandler onClick={onClick} />
       <ViewReporter onView={onView} />
       <FlyTo target={flyTarget} />
-      <OsmCredit active={routes.length > 0 || (shore?.spots.length ?? 0) > 0} />
+      <OsmCredit active={routes.length > 0 || shore.spots.length > 0} />
     </MapContainer>
   );
 }

@@ -1,18 +1,15 @@
-import { useEffect } from 'react';
-import { CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { CircleMarker, Polyline, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import type { RockKind, ShoreResult, ShoreSpot } from '../lib/shore';
+import { useFitOnPick } from './useFitOnPick';
 
 const ROCK_COLOR: Record<RockKind, string> = { platform: '#7b3f00', talus: '#9c6644', cliff: '#3d2b1f', sheltered: '#a47148', structure: '#6c757d' };
 const DIFF_COLOR = { easy: '#1a7f37', moderate: '#bf8700', hard: '#cf222e' } as const;
 const ll = ([lng, lat]: [number, number]) => [lat, lng] as [number, number];
 
 export default function ShoreLayers({ result, spots, selectedId, onSelect }: { result: ShoreResult | null; spots: ShoreSpot[]; selectedId: string | null; onSelect: (id: string) => void }) {
-  const map = useMap();
   const selected = spots.find(s => s.id === selectedId) ?? null;
-  useEffect(() => {
-    if (selected) map.fitBounds(L.latLngBounds([ll(selected.at), ll(selected.rockAt)]).pad(2), { maxZoom: 17 });
-  }, [map, selected]);
+  useFitOnPick(selectedId, () => selected && L.latLngBounds([ll(selected.at), ll(selected.rockAt)]).pad(2), { maxZoom: 17 });
   if (!result) return null;
   return <>
     {result.rock.map(r => <Polyline key={r.kind} positions={r.lines.map(l => l.map(ll))} interactive={false} pathOptions={{ color: ROCK_COLOR[r.kind], weight: 4, opacity: 0.85 }} />)}
