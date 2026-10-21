@@ -6,8 +6,9 @@
 
 ## Why this exists
 
-If you fish the ocean in California, there's an app for that. The state's **CA FishLegal** app uses the
-Department of Fish and Wildlife's (CDFW) saltwater map data to show the rules where you're standing.
+If you fish the ocean in California, there's an app for that. [FishLegal](https://fishlegal.info/) (iOS and
+Android) has all of California's saltwater fishing regulations and maps of every Marine Protected Area. It uses
+GPS to show where you are relative to those areas, and works offline.
 
 Freshwater has nothing like it. The rules for lakes, rivers and streams live in a printed pamphlet: the
 *Freshwater Sport Fishing Regulations* booklet. Answering "can I fish this creek, and what can I keep?" means doing
