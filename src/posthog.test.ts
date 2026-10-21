@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { entryOf, pageUrl } from './posthog';
+import { deviceOf, entryOf, pageUrl } from './posthog';
 
 describe('visit entry', () => {
   it('names which parts a shared link had, never their values', () => {
@@ -13,5 +13,10 @@ describe('visit entry', () => {
     const u = 'https://jeremy-lin-11.github.io/ca-fishing-map/#map=38.7517,-121.5912,11&pt=38.84826,-121.66397';
     expect(pageUrl(u, 'shared_link')).toBe('https://jeremy-lin-11.github.io/ca-fishing-map/#shared-link');
     expect(pageUrl(u, 'direct')).toBe('https://jeremy-lin-11.github.io/ca-fishing-map/');
+  });
+  it('classes devices by pointer and screen size', () => {
+    expect(deviceOf({ coarse: false, shortSide: 1080 })).toBe('desktop'); // mouse, incl. touch laptops with a mouse
+    expect(deviceOf({ coarse: true, shortSide: 390 })).toBe('mobile');
+    expect(deviceOf({ coarse: true, shortSide: 820 })).toBe('tablet');
   });
 });
