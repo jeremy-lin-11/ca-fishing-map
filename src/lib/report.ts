@@ -75,3 +75,22 @@ export function buildReport(input: ReportInput, ctx: ReportContext): Report {
 // Plain text, for copying when sending fails (e.g. an ad blocker blocks analytics).
 export const reportText = (r: Report) =>
   Object.entries(r).filter(([, v]) => v !== null && v !== '').map(([k, v]) => `${k}: ${v}`).join('\n');
+
+// A pre-filled GitHub "new issue" link, the fallback when sending fails. Issues are public, so the optional email
+// is left out; location is in it only if the reporter kept it checked (the form warns that issues are public).
+// Kept under ~7,500 characters: longer URLs fail in some browsers.
+export function issueUrl(base: string, r: Report, max = 7500): string {
+  const { email: _email, notes, ...rest } = r;
+  const title = `Problem report: ${REPORT_CATEGORIES[r.category as ReportCategory] ?? r.category}`;
+  const make = (n: string, d: string) =>
+    `${base}?${new URLSearchParams({ title, body: `${n}\n\n<details><summary>What the app showed</summary>\n\n\`\`\`\n${d}\n\`\`\`\n</details>` })}`;
+  let n = String(notes ?? ''), d = reportText(rest);
+  // Too long: shorten the app details first, then the notes. (An encoded character is up to 9 URL characters.)
+  for (let url = make(n, d); url.length > max; url = make(n, d)) {
+    const drop = Math.ceil((url.length - max) / 9) + 1;
+    if (d.length > 1) d = `${d.slice(0, Math.max(0, d.length - 1 - drop))}…`;
+    else if (n.length) n = n.slice(0, Math.max(0, n.length - drop));
+    else break;
+  }
+  return make(n, d);
+}

@@ -58,6 +58,8 @@ export const CONFIG = {
   osmLakes: `${import.meta.env.BASE_URL}lakes`,
   // Optional "Report a problem" link shown in About (e.g. a public issues page or form). Empty = hidden.
   feedbackUrl: '',
+  // Where a problem report goes when sending fails (e.g. an ad blocker): a pre-filled GitHub issue (public).
+  issuesUrl: 'https://github.com/jeremy-lin-11/ca-fishing-map/issues/new',
 
   // CDFW freshwater regulations (official regulation viewer data). Layer ids inside this service.
   regs: {

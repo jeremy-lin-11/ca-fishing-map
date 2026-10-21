@@ -1,7 +1,8 @@
 // "Report a problem": a short form that sends the reporter's notes plus what they were looking at (lib/report.ts).
 // Location is sent only if "Include this map location" stays checked; the exact fields are shown before sending.
 import { useEffect, useState } from 'react';
-import { buildReport, REPORT_CATEGORIES, reportText, type ReportCategory, type ReportContext } from '../lib/report';
+import { CONFIG } from '../config';
+import { buildReport, issueUrl, REPORT_CATEGORIES, reportText, type ReportCategory, type ReportContext } from '../lib/report';
 import { sendReport } from '../posthog';
 
 interface Props { context: () => ReportContext; category?: ReportCategory; onClose: () => void }
@@ -58,11 +59,17 @@ export default function ReportProblem({ context, category: initial = 'other', on
             <summary>What's sent</summary>
             <pre className="report-preview">{reportText(report)}</pre>
           </details>
-          {state === 'failed' && <p className="err">Couldn't send the report (an ad blocker may block it, or you're offline).
-            Copy it instead and paste it wherever you reach the site's author.</p>}
+          {state === 'failed' && <div className="err">
+            <p>Couldn't send the report (an ad blocker may block it, or you're offline). You can post it as a GitHub issue
+              instead: it opens pre-filled. <b>GitHub issues are public</b>, so anyone can see it{includeLocation ? ', including the map location (uncheck it above to leave it out)' : ''}.
+              Your email isn't included. You'll need a GitHub account.</p>
+          </div>}
           <div className="row">
             <button type="submit" disabled={!notes.trim() || state === 'sending'}>{state === 'sending' ? 'Sending…' : 'Send report'}</button>
-            {state === 'failed' && <button type="button" onClick={copy}>{copied ? 'Copied!' : 'Copy report'}</button>}
+            {state === 'failed' && <>
+              <a className="button" href={issueUrl(CONFIG.issuesUrl, report)} target="_blank" rel="noopener">Open a GitHub issue</a>
+              <button type="button" onClick={copy}>{copied ? 'Copied!' : 'Copy report'}</button>
+            </>}
             <button type="button" className="linkbtn" onClick={onClose}>Cancel</button>
           </div>
         </form>}

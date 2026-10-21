@@ -199,8 +199,8 @@ only:
 **Problem reports** (`lib/report.ts`, `components/ReportProblem.tsx`) go to PostHog as `bug_report` events. A report
 carries the reporter's notes and optional email, the answer they saw, app version and browser. The tapped point,
 map view and a reopening link are included only if they keep "Include this map location" checked; the form shows
-exactly what's sent. Reports POST straight to the capture API, so a blocked request is detected and the form offers
-the report to copy instead. Read them in PostHog under Activity, filtered by event `bug_report`.
+exactly what's sent. Reports POST straight to the capture API, so a blocked request is detected. The form then offers a pre-filled
+GitHub issue (`CONFIG.issuesUrl`), warning that issues are public and leaving out the email, or the report to copy. Read them in PostHog under Activity, filtered by event `bug_report`.
 
 PostHog loads in its own chunk after the page is up, so it doesn't delay the map. Ad blockers simply turn it off.
 The public project key is in `.env.production`.
