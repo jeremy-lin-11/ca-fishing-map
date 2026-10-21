@@ -63,7 +63,7 @@ describe('depth', () => {
 });
 
 describe('interpret', () => {
-  const base: Raw = { own: [], waterBody: [], fed: [], parks: [], mpa: [], geo: { address: { state: 'California', county: 'Monterey County' } },
+  const base: Raw = { own: [], waterBody: [], fed: [], parks: [], mpa: [], bay: [], nearBay: [], coastalBay: [], geo: { address: { state: 'California', county: 'Monterey County' } },
     dem: -500, rca: [], contours: [], regs: { hits: [], rowsByCode: new Map(), failed: [] } };
   const p = { lat: 36.75, lng: -122 };
   it('treats points outside all inland regulation areas and below sea level as ocean', () => {
@@ -103,6 +103,37 @@ describe('interpret', () => {
   });
   it('reports failed sources', () => {
     expect(interpret(p, 'auto', { ...base, fed: null }).errors).toContain('federal lands');
+  });
+  it('San Francisco Bay District is bay water under ocean rules, though inland district polygons cover it', () => {
+    const district = { kind: KINDS[3], desc: 'South Central District', code: '7.00(e)' };
+    const inBay = { ...base, dem: -1.3, geo: null, regs: { ...base.regs, hits: [district] }, bay: [{}], nearBay: [{}] };
+    const a = interpret({ lat: 37.52, lng: -122.13 }, 'auto', inBay);
+    expect(a.water).toBe('ocean');
+    expect(a.trout).toBeNull();
+    expect(a.notes.some(n => n.strong === 'San Francisco Bay District')).toBe(true);
+    expect(interpret({ lat: 37.52, lng: -122.13 }, 'auto', { ...inBay, bay: [], nearBay: [] }).water).toBe('stream'); // Suisun side: inland
+  });
+  it('salt evaporation ponds are not lakes; next to the bay they count as bay water', () => {
+    const pond = { NAME: ' ', FTYPE: 'Reservoir', FCODE_DESC: 'Reservoir: Reservoir Type = Evaporator' };
+    const fws = { Own_Level: 'Federal', Own_Group: 'US Fish and Wildlife Service', Own_Agency: 'United States Fish and Wildlife Service' };
+    const raw = { ...base, dem: 0.1, own: [fws], waterBody: [pond], regs: { ...base.regs, hits: [{ kind: KINDS[3], desc: 'South Central District', code: '7.00(e)' }] } };
+    const byBay = interpret({ lat: 37.43357, lng: -122.04248 }, 'auto', { ...raw, nearBay: [{}] });
+    expect(byBay.water).toBe('ocean');
+    expect(byBay.trout).toBeNull();
+    expect(byBay.verdict.status).toBe('warn'); // refuge: designated areas only
+    expect(byBay.notes.some(n => n.strong === 'Salt evaporation pond')).toBe(true);
+    expect(interpret({ lat: 35.5, lng: -117.4 }, 'auto', raw).water).toBe('stream'); // inland evaporator: not a lake either
+    expect(interpret({ lat: 35.5, lng: -117.4 }, 'auto', { ...raw, waterBody: [{ NAME: 'Lake X', FTYPE: 'Reservoir', FCODE_DESC: 'Reservoir' }] }).water).toBe('lake');
+  });
+  it('coastal bays and harbors use ocean rules; a mapped lake inside the tidal extent stays a lake', () => {
+    const raw = { ...base, dem: -2, geo: { address: { state: 'California', county: 'San Diego County' } }, coastalBay: [{ Estuary_Name: 'Mission Bay' }],
+      regs: { ...base.regs, hits: [{ kind: KINDS[3], desc: 'South Coast District', code: '7.00(g)' }] } };
+    const a = interpret({ lat: 32.775, lng: -117.225 }, 'auto', raw);
+    expect(a.water).toBe('ocean');
+    expect(a.trout).toBeNull();
+    expect(a.notes.some(n => n.strong === 'Mission Bay')).toBe(true);
+    expect(interpret({ lat: 37.8, lng: -122.26 }, 'auto', { ...raw, waterBody: [{ NAME: 'Merritt, Lake', FTYPE: 'Lake/Pond' }] }).water).toBe('lake');
+    expect(interpret({ lat: 32.775, lng: -117.225 }, 'auto', { ...raw, coastalBay: [] }).water).toBe('stream');
   });
 });
 

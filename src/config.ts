@@ -30,6 +30,20 @@ export const CONFIG = {
       where: "FEATTYPE <> 'National park or forest'"
     },
     // CDFW Marine Protected Areas (fields: name, fullname, type, regulation_text, regulations_url).
+    // CDFW San Francisco Bay Groundfish Management Area = the San Francisco Bay District (Title 14 §27.00): ocean
+    // sport fishing regulations apply. CDFW's inland district polygons also cover the bay, so it decides bay vs. inland.
+    sfBay: {
+      url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/ArcGIS/rest/services/FishingRegulationsV1/FeatureServer/6',
+      where: "feat_desc = 'San Francisco Bay Groundfish Management Area'"
+    },
+    // Coastal bays and harbors (Pacific Marine and Estuarine Partnership tidal extent, CDFW BIOS ds2792), where ocean
+    // sport fishing regulations generally apply. Only 'Embayment/Bay': river-mouth lagoons and tidewaters are inland
+    // waters (Title 14 §1.53). The San Francisco Bay system is left to sfBay (Suisun Bay, east of it, is inland).
+    // The extent includes tidal marsh and some diked lowlands, so a mapped lake there still counts as a lake.
+    coastalBays: {
+      url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/biosds2792_fpu/FeatureServer/0',
+      where: "CMECS_Class = 'Embayment/Bay' AND Estuary_Name NOT IN ('San Francisco Bay', 'South San Francisco Bay', 'San Pablo Bay', 'Suisun-Grizzly Bays')"
+    },
     mpa: {
       label: 'Marine Protected Areas',
       url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/ArcGIS/rest/services/California_Marine_Protected_Areas/FeatureServer/1'

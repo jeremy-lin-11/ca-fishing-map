@@ -131,6 +131,7 @@ the text table. Each query fails soft (`null`) and is listed under "Could not lo
 | water body | Esri USA Detailed Water Bodies | lake vs. stream; lake surfaces are public water |
 | MPA | CDFW | no-take or limited-take marine reserves |
 | regulations | CDFW regulation viewer layers + text table | special regulations at the point (`regdata.ts`) |
+| SF Bay District, coastal bays | CDFW, PMEP (CDFW BIOS) | bay water: ocean rules, not the freshwater booklet |
 | county | US Census counties | display, offshore detection |
 | elevation/depth | NOAA NCEI DEM | ocean depth, lake surface elevation |
 | RCA lines, lake contours | CDFW | groundfish depth lines, Salton Sea depth |
@@ -181,7 +182,8 @@ route-search `tab`, `f`, `route`) are ignored.
 | Land ownership | CAL FIRE California Land Ownership | California-only, every owner type incl. LADWP, districts, nonprofits, tribal |
 | Regulations | CDFW regulation viewer service (map layers + text table keyed by Title 14 section) | the official data behind CDFW's own viewer |
 | Seasons & limits | parsed from that text (`season.ts`, `rules.ts`) | no structured season data exists |
-| Lakes | Esri USA Detailed Water Bodies | lake vs. stream at a point, online and offline |
+| Lakes | Esri USA Detailed Water Bodies (USGS NHD) | lake vs. stream at a point; NHD types tell salt evaporators and industrial ponds from lakes |
+| Bays | CDFW San Francisco Bay District (§27.00) polygon; PMEP coastal embayments (CDFW BIOS ds2792) | CDFW's inland district polygons also cover bays, so bay outlines decide where ocean rules apply |
 | Elevation & depth | NOAA NCEI DEM mosaic | ocean depth and lake surface elevation |
 | Basemaps | USGS National Map (topo, imagery), NOAA relief | public domain: fine for public use and offline caching |
 | Place search | Census places + OpenStreetMap names → `public/places.json` | no third-party geocoder; works offline |
@@ -195,6 +197,11 @@ route-search `tab`, `f`, `route`) are ignored.
 - **Rule order** (`rules.troutRule`). The water's special regulation comes first, then district rules for all
   streams (§7.00), then the statewide default (§5.85: 5 daily, 10 in possession). With no possession limit stated,
   possession is one daily bag (§1.17).
+- **Bay vs. inland water** (`analyze.interpret`). Inland district polygons extend over the bays, so they can't tell
+  bay from inland water. Inside the San Francisco Bay District, or one of 34 other coastal bays and harbors, ocean
+  rules apply. Suisun Bay and the Delta stay inland, and so do river-mouth lagoons (Title 14 §1.53). A mapped lake in
+  the tidal extent stays a lake. Diked salt ponds within 1.5 km of the bay count as bay water, and are flagged as
+  usually closed.
 - **District caveats.** §7.00 district polygons cover whole districts, so "anadromous waters" rules can't be
   applied per water. They are shown as caveats.
 - **Freshness** (`regdata.regsFreshness`). CDFW's dataset text cites the booklet it was copied from. The UI shows

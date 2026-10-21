@@ -38,4 +38,22 @@ describe('offline areas', () => {
     const outside = interpret({ lat: 37.55, lng: -119.05 }, 'auto', offlineRaw(o, { lat: 37.55, lng: -119.05 }, 14), new Date(2026, 6, 4));
     expect(outside.regs?.special).toEqual([]);
   });
+  it('saved San Francisco Bay outline: bay water, and salt ponds within 1.5 km of it', () => {
+    const bayRing = [[-122.2, 37.45], [-122.0, 37.45], [-122.0, 37.6], [-122.2, 37.6], [-122.2, 37.45]] as [number, number][];
+    const pondRing = [[-122.045, 37.43], [-122.035, 37.43], [-122.035, 37.44], [-122.045, 37.44], [-122.045, 37.43]] as [number, number][];
+    const o: OfflineData = { bbox: { south: 37.3, west: -122.3, north: 37.7, east: -121.9 }, land: [], regFeatures: [], regRows: [],
+      lakes: [{ rings: [pondRing], attrs: { NAME: ' ', FTYPE: 'Reservoir', FCODE_DESC: 'Reservoir: Reservoir Type = Evaporator' } }], bay: [[bayRing]] };
+    expect(interpret({ lat: 37.5, lng: -122.1 }, 'auto', offlineRaw(o, { lat: 37.5, lng: -122.1 }, 14)).water).toBe('ocean');
+    const pond = { lat: 37.439, lng: -122.04 }; // in the pond, ~1.2 km south of the bay edge
+    expect(interpret(pond, 'auto', offlineRaw(o, pond, 14)).water).toBe('ocean');
+    expect(interpret(pond, 'auto', offlineRaw({ ...o, bay: undefined }, pond, 14)).water).toBe('stream'); // older save: no outline
+  });
+  it('saved coastal bay outlines: ocean rules inside them', () => {
+    const ring = [[-117.25, 32.76], [-117.2, 32.76], [-117.2, 32.8], [-117.25, 32.8], [-117.25, 32.76]] as [number, number][];
+    const o: OfflineData = { bbox: { south: 32.7, west: -117.3, north: 32.85, east: -117.1 }, land: [], regFeatures: [], regRows: [], lakes: [],
+      coastalBays: [{ name: 'Mission Bay', rings: [ring] }] };
+    const p = { lat: 32.775, lng: -117.225 };
+    expect(interpret(p, 'auto', offlineRaw(o, p, 14)).notes.some(n => n.strong === 'Mission Bay')).toBe(true);
+    expect(interpret(p, 'auto', offlineRaw({ ...o, coastalBays: undefined }, p, 14)).water).not.toBe('lake');
+  });
 });

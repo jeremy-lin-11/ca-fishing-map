@@ -73,6 +73,21 @@ describe('live services', () => {
     expect(a.lands[0]?.key).toBe('LADWP');
     expect(a.landBadge.text).toBe('Public');
   });
+  it('South Bay salt pond: bay water (not a lake), refuge rules, no trout limit', async () => {
+    const a = await at(37.43357, -122.04248);
+    expect(a.water).toBe('ocean');
+    expect(a.trout).toBeNull();
+    expect(a.notes.map(n => n.strong)).toEqual(expect.arrayContaining(['San Francisco Bay District', 'Salt evaporation pond']));
+  });
+  it('open San Francisco Bay: ocean rules, though inland district polygons cover it', async () => {
+    for (const [lat, lng] of [[37.52, -122.13], [38.05, -122.35]]) expect((await at(lat, lng)).water).toBe('ocean');
+    expect((await at(38.07, -122.05)).water).toBe('stream'); // Suisun Bay, east of the Carquinez Bridge: inland waters
+  });
+  it('coastal bays and harbors: ocean rules; river-mouth estuaries stay inland', async () => {
+    for (const [lat, lng] of [[32.705, -117.228], [40.765, -124.205], [38.2, -122.94], [32.775, -117.225]]) // San Diego, Humboldt, Tomales, Mission
+      expect((await at(lat, lng)).water).toBe('ocean');
+    expect((await at(39.426, -123.80)).water).toBe('stream'); // Noyo River estuary: inland tidewater (§1.53)
+  });
   it('offline area around Crowley Lake answers like the online check', async () => {
     const o = await fetchOffline({ south: 37.55, west: -118.80, north: 37.66, east: -118.66 });
     expect(o.land.length).toBeGreaterThan(0);

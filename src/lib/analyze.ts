@@ -26,10 +26,19 @@ export interface Analysis {
 export interface Raw {
   own: Attrs[] | null; waterBody: Attrs[] | null;
   fed: Attrs[] | null; parks: Attrs[] | null; mpa: Attrs[] | null;
+  bay: Attrs[] | null; nearBay: Attrs[] | null; // San Francisco Bay District at the point / within BAY_POND_M
+  coastalBay: Attrs[] | null; // other coastal bays and harbors (Estuary_Name)
   geo: any; dem: number | null; rca: Attrs[] | null; contours: Attrs[] | null; regs: RegLookup;
 }
 
 const settle = <T,>(p: Promise<T>) => p.catch(() => null);
+
+// Diked ponds this close to the San Francisco Bay District are bay-margin salt ponds, not inland lakes.
+export const BAY_POND_M = 1500;
+// Esri water bodies (USGS NHD) types "Reservoir" covers salt evaporators and industrial ponds too; FCODE_DESC tells them apart.
+const POND_TYPES: [RegExp, string][] = [[/evaporator/i, 'Salt evaporation pond'], [/disposal/i, 'Disposal pond'],
+  [/treatment/i, 'Treatment pond'], [/aquaculture/i, 'Aquaculture pond']];
+const pondType = (w: Attrs) => POND_TYPES.find(([re]) => re.test(String(w.FCODE_DESC ?? '')))?.[1];
 
 // County at the point, shaped like the geocoder response this used to come from ({ address: { county, state } }).
 // null off the coast or if the service is unavailable.
@@ -45,19 +54,22 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
   const tol = 14 * 156543 * Math.cos(point.lat * Math.PI / 180) / Math.pow(2, zoom);
   const { layers: L, depth: D } = CONFIG;
   const salton = D.lakeContours[0];
-  const [own, waterBody, fed, parks, mpa, geo, dem, rca, contours, regs] = await Promise.all([
+  const [own, waterBody, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs] = await Promise.all([
     settle(queryPoint(L.ownership.url, point, { outFields: 'Own_Level,Own_Group,Own_Agency' })),
-    settle(queryPoint(L.waterBodies.url, point, { outFields: 'NAME,FTYPE' })),
+    settle(queryPoint(L.waterBodies.url, point, { outFields: 'NAME,FTYPE,FCODE_DESC' })),
     settle(queryPoint(L.federal.url, point)),
     settle(queryPoint(L.parks.url, point, { where: L.parks.where })),
     settle(queryPoint(L.mpa.url, point)),
+    settle(queryPoint(L.sfBay.url, point, { where: L.sfBay.where, outFields: 'feat_desc' })),
+    settle(queryPoint(L.sfBay.url, point, { where: L.sfBay.where, meters: BAY_POND_M, outFields: 'feat_desc' })),
+    settle(queryPoint(L.coastalBays.url, point, { where: L.coastalBays.where, outFields: 'Estuary_Name' })),
     countyAt(point),
     sampleDem(D.dem, point),
     settle(queryPoint(D.rca, point, { meters: 2000, outFields: 'feat_desc' })),
     settle(queryPoint(salton.url, point, { where: salton.where, meters: 400, outFields: salton.field })),
     lookupRegs(CONFIG.regs, point, tol).catch((): RegLookup => ({ hits: [], rowsByCode: new Map(), failed: ['freshwater regulations'] }))
   ]);
-  return { own, waterBody, fed, parks, mpa, geo, dem, rca, contours, regs };
+  return { own, waterBody, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs };
 }
 
 // Ownership (CAL FIRE) decides the land category; Esri federal/parks layers supply unit names when they agree.
@@ -94,15 +106,22 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
   if (d.regs.failed.length) errors.push(...d.regs.failed);
 
   if (!d.own) errors.push('land ownership');
+  if (!d.bay || !d.nearBay) errors.push('San Francisco Bay boundary');
+  if (!d.coastalBay) errors.push('coastal bays');
   const lands = landUnits(d.own, fed, parks);
   const land = lands[0];
-  const lake = (d.waterBody ?? []).find(w => /lake|reservoir/i.test(String(w.FTYPE ?? '')));
+  const pond = (d.waterBody ?? []).find(w => pondType(w));
+  const lake = (d.waterBody ?? []).find(w => /lake|reservoir/i.test(String(w.FTYPE ?? '')) && !pondType(w));
 
   // Open-coast points fall outside every CDFW inland regulation area (even the §0.01 state boundary polygon)
-  // and every county. Inland, a point is a lake if it's on a mapped water body, else a stream.
+  // and every county. Bays are inside inland district polygons, so bay outlines decide: San Francisco Bay's District
+  // polygon (a diked pond next to it counts as bay) and other coastal bays and harbors (unless on a mapped lake).
+  // Inland, a point is a lake if it's on a mapped lake or reservoir, else a stream.
   const noInlandRegs = !d.regs.failed.length && !d.regs.hits.length;
   const offshore = noInlandRegs && ((d.dem != null && d.dem < 0) || (!d.geo && !!d.own && !d.own.length));
-  const water: WaterType = waterSel !== 'auto' ? waterSel : mpas.length || offshore ? 'ocean' : lake ? 'lake' : 'stream';
+  const sfBay = !!d.bay?.length || (!!pond && !!d.nearBay?.length);
+  const coastalBay = lake ? undefined : d.coastalBay?.[0];
+  const water: WaterType = waterSel !== 'auto' ? waterSel : mpas.length || offshore || sfBay || coastalBay ? 'ocean' : lake ? 'lake' : 'stream';
 
   let verdict: Analysis['verdict'] = { status: 'ok', text: 'Fishing legal with a CA license (check water-specific rules)' };
   const notes: Note[] = [];
@@ -130,6 +149,12 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
     verdict = { status: 'warn', text: 'Not mapped public land – permission likely required' };
     notes.push({ text: 'No public land at this point in the data. Treat as private unless posted otherwise. Navigable waters are public, but you may not cross private land to reach them.' });
   }
+  if (sfBay && water === 'ocean')
+    notes.push({ strong: 'San Francisco Bay District', text: ' (Title 14 §27.00): ocean sport fishing regulations apply, not the freshwater booklet.' });
+  else if (coastalBay && water === 'ocean')
+    notes.push({ strong: String(coastalBay.Estuary_Name || 'Coastal bay'), text: ': tidal bay or harbor. Ocean sport fishing regulations generally apply, not the freshwater booklet.' });
+  if (pond)
+    notes.push({ strong: pondType(pond)!, text: ': an industrial or restoration pond, not a fishing lake. These are usually closed to public entry; fish only from designated public areas.' });
   if (land && /ecological reserve|wildlife area|natural reserve/i.test(land.name + ' ' + land.type))
     notes.push({ text: 'Ecological Reserves/Wildlife Areas often have special fishing restrictions. Check CDFW Title 14 §630.' });
   if (land && /wilderness/i.test(land.name + ' ' + land.type))

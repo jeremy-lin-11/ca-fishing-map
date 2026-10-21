@@ -9,6 +9,7 @@ const isInstalled = () => window.matchMedia?.('(display-mode: standalone)').matc
 
 const SOURCES: [string, string, string][] = [
   ['Fishing regulations, MPAs, rockfish depth lines, Salton Sea depth', 'California Department of Fish and Wildlife (CDFW) public GIS data', 'https://wildlife.ca.gov/Data/GIS'],
+  ['Bays and harbors', 'Pacific Marine and Estuarine Fish Habitat Partnership, estuary extent (via CDFW BIOS)', 'https://www.arcgis.com/home/item.html?id=c0b97243451f46db84b51d044424b51a'],
   ['Land ownership', 'CAL FIRE, California Land Ownership', 'https://www.fire.ca.gov/what-we-do/fire-resource-assessment-program'],
   ['Place search: lake, stream and trail names', '© OpenStreetMap contributors (ODbL)', 'https://www.openstreetmap.org/copyright'],
   ['Unit names, water bodies, counties, towns', 'Esri Living Atlas (USGS, US Census Bureau)', 'https://livingatlas.arcgis.com'],

@@ -1,12 +1,12 @@
 // Offline areas: everything needed to answer fishing checks inside a saved area with no network.
 //
 // Saved per area: land ownership polygons with their Own_* fields, CDFW regulation polygons (lakes, streams,
-// tributary areas, all districts) with their text rows, and Esri water-body polygons (for "is this click on a
-// lake"). An offline fishing check rebuilds the same Raw input the online check gets from the services, then runs
+// tributary areas, all districts) with their text rows, Esri water-body polygons (for "is this click on a
+// lake") and the outlines of San Francisco Bay's District and other coastal bays where the area touches them. An offline fishing check rebuilds the same Raw input the online check gets from the services, then runs
 // the same interpret(), so offline answers can't drift from online ones.
 import { CONFIG } from '../config';
 import { arcFeatures, type Attrs } from './arcgis';
-import type { Raw } from './analyze';
+import { BAY_POND_M, type Raw } from './analyze';
 import { californiaQueryParams } from './california';
 import { bboxSpanKm, nearestBetween, pointInPolygon, projector, type BBox, type Coord, type Line } from './geo';
 import { fetchRegRows, KINDS, resolveHits, type Hit } from './regdata';
@@ -26,6 +26,8 @@ export interface OfflineData {
   regRows: Attrs[];
   // Areas saved before the route search was removed have OSM lakes ({ name, lines }) here instead.
   lakes: (WaterPoly | { name: string; lines: Line[] })[];
+  bay?: Line[][]; // San Francisco Bay District polygons (absent in older saves)
+  coastalBays?: { name: string; rings: Line[] }[]; // other coastal bays and harbors (absent in older saves)
 }
 
 export interface SavedArea {
@@ -71,17 +73,21 @@ async function fetchRegs(b: BBox): Promise<{ features: RegFeature[]; rows: Attrs
 // area would give wrong answers offline.
 export async function fetchOffline(b: BBox): Promise<OfflineData> {
   const L = CONFIG.layers;
-  const [land, regs, lakes] = await Promise.all([
+  const [land, regs, lakes, bay, coastalBays] = await Promise.all([
     arcFeatures(L.ownership.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0002', geometryPrecision: '5',
       outFields: 'Own_Level,Own_Group,Own_Agency' }, 10),
     fetchRegs(b),
     arcFeatures(L.waterBodies.url, { ...envelopeFor(b), where: "FTYPE LIKE '%Lake%' OR FTYPE LIKE '%Reservoir%'", maxAllowableOffset: '0.0001',
-      geometryPrecision: '5', outFields: 'NAME,FTYPE' }, 10)
+      geometryPrecision: '5', outFields: 'NAME,FTYPE,FCODE_DESC' }, 10),
+    arcFeatures(L.sfBay.url, { ...envelopeFor(b), where: L.sfBay.where, maxAllowableOffset: '0.0002', geometryPrecision: '5', outFields: 'feat_desc' }),
+    arcFeatures(L.coastalBays.url, { ...envelopeFor(b), where: L.coastalBays.where, maxAllowableOffset: '0.0001', geometryPrecision: '5', outFields: 'Estuary_Name' })
   ]);
   return {
     bbox: b, regFeatures: regs.features, regRows: regs.rows,
     land: land.map(f => ({ rings: paths(f.geometry), attrs: f.attributes })),
-    lakes: lakes.map(f => ({ rings: paths(f.geometry), attrs: f.attributes }))
+    lakes: lakes.map(f => ({ rings: paths(f.geometry), attrs: f.attributes })),
+    bay: bay.map(f => paths(f.geometry)),
+    coastalBays: coastalBays.map(f => ({ name: String(f.attributes.Estuary_Name), rings: paths(f.geometry) }))
   };
 }
 
@@ -104,6 +110,9 @@ export function offlineRaw(o: OfflineData, point: LatLng, zoom: number): Raw {
     own: o.land.filter(p => pointInPolygon(at, p.rings)).map(p => p.attrs),
     waterBody: !lake ? [] : 'attrs' in lake ? [lake.attrs] : [{ NAME: lake.name, FTYPE: 'Lake/Pond' }],
     fed: [], parks: [], mpa: [],
+    bay: (o.bay ?? []).filter(r => pointInPolygon(at, r)).map(() => ({})),
+    coastalBay: (o.coastalBays ?? []).filter(c => pointInPolygon(at, c.rings)).map(c => ({ Estuary_Name: c.name })),
+    nearBay: (o.bay ?? []).filter(r => nearestBetween([[at]], r, proj, BAY_POND_M) !== null || pointInPolygon(at, r)).map(() => ({})),
     geo: { address: { state: 'California' } }, // the area is inside California; there's no geocoder offline
     dem: null, rca: [], contours: [],
     regs: { hits, rowsByCode: new Map(o.regRows.map(r => [String(r.code), r])), failed: [] }
