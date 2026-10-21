@@ -89,7 +89,9 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
   return (
     // preferCanvas: vector layers paint to one <canvas> per pane instead of one SVG element per feature. Land
     // ownership alone can put 5,000-12,000 parcels in view, which as SVG locked up the page.
-    <MapContainer id="map" preferCanvas {...(initialView ? { center: [initialView.lat, initialView.lng] as [number, number], zoom: initialView.zoom } : { bounds: CONFIG.bounds })} maxBounds={L.latLngBounds(CONFIG.bounds).pad(1)}>
+    // Wheel: gather a trackpad gesture into one zoom step (Leaflet's 40 ms / 60 px turned one swipe into several
+    // jumps, each reloading the data layers).
+    <MapContainer id="map" preferCanvas wheelDebounceTime={100} wheelPxPerZoomLevel={120} {...(initialView ? { center: [initialView.lat, initialView.lng] as [number, number], zoom: initialView.zoom } : { bounds: CONFIG.bounds })} maxBounds={L.latLngBounds(CONFIG.bounds).pad(1)}>
       {basemap === 'topo' && <TileLayer url={BASEMAPS.usgsTopo} maxNativeZoom={16} attribution="USGS The National Map" />}
       {basemap === 'imagery' && <TileLayer url={BASEMAPS.usgsImagery} maxNativeZoom={16} attribution="USGS The National Map" />}
       {basemap === 'relief' && <EsriImageLayer url={BASEMAPS.noaaRelief} attribution="NOAA NCEI" />}

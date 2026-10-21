@@ -201,7 +201,9 @@ public/
 ```
 
 **Pinned internals:** esri-leaflet is pinned to 3.0.19 because `EsriLayers.tsx` overrides its private
-`_isValidCell` and `_buildQuery` (skip or clip cells outside California), and `CaliforniaClip.tsx` uses Leaflet's
+`_isValidCell` and `_buildQuery` (skip or clip cells outside California), `getCellSize` and `_cellCoordsToNwSe`
+(zoom levels share cells in pairs, so zooming one level reuses cached responses), and replaces `Query.run` with a
+protobuf query (`lib/pbfQuery.ts`, ~3x fewer bytes than gzipped GeoJSON). `CaliforniaClip.tsx` uses Leaflet's
 `_latLngToNewLayerPoint`. Re-check both before upgrading.
 
 **Rules quoted by hand:** the shore-angler rockfish rules card (`ShorePanel.tsx`) quotes CDFW's Groundfish Summary
