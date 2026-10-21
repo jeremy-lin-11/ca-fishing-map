@@ -97,6 +97,12 @@ details.more .linkbtn{margin:0 0 0 auto;width:auto;font-size:12px}
 .count{font-size:11px;font-weight:600;background:#ddf4ff;color:#0969da;border-radius:10px;padding:1px 7px}
 
 /* Layers control over the map */
+.locate{position:relative}
+.locate a{display:flex;align-items:center;justify-content:center;color:#1c2630}
+.locate a.busy{color:#0a84ff;animation:locate-pulse 1s ease-in-out infinite}
+@keyframes locate-pulse{50%{opacity:.4}}
+.locate-msg{position:absolute;left:38px;top:0;width:220px;background:#fff;border-radius:6px;padding:6px 8px;font-size:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .maplayers{position:absolute;top:10px;right:10px;z-index:1100;display:flex;flex-direction:column;align-items:flex-end}
 .maplayers-btn{background:#fff;color:#1c2630;border:2px solid rgba(0,0,0,.2);background-clip:padding-box;font-weight:600;display:flex;gap:6px;align-items:center}
 .maplayers-panel{margin-top:6px;width:300px;max-height:calc(100dvh - 90px);overflow:auto;background:#fff;border-radius:8px;padding:4px 12px 10px;box-shadow:0 4px 14px rgba(0,0,0,.2)}

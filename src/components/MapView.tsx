@@ -11,6 +11,7 @@ import RouteLayers from './RouteLayers';
 import ShoreLayers from './ShoreLayers';
 import type { ShoreResult, ShoreSpot } from '../lib/shore';
 import CaliforniaClip from './CaliforniaClip';
+import LocateControl from './LocateControl';
 import type { Basemap } from './MapLayers';
 import { CA_RINGS } from '../data/california';
 import type { BBox } from '../lib/geo';
@@ -134,6 +135,7 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
       <ClickHandler onClick={onClick} />
       <ViewReporter onView={onView} />
       <FlyTo target={flyTarget} />
+      <LocateControl />
       <OsmCredit active={routes.length > 0 || shore.spots.length > 0} />
     </MapContainer>
   );
