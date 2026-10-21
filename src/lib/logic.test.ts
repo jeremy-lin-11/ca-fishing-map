@@ -107,8 +107,7 @@ describe('interpret', () => {
 });
 
 import { inCalifornia } from './california';
-import { dedupeTrails, isFootTrail, matchRoutes, normName, prepareRouteData } from './trails';
-import { lineLength, nearestBetween, nearPairs, pointInPolygon, projector, type Line } from './geo';
+import { nearestBetween, pointInPolygon, projector } from './geo';
 
 describe('california area', () => {
   it.each([
@@ -120,9 +119,6 @@ describe('california area', () => {
 
 describe('geo', () => {
   const proj = projector(37.6);
-  it('measures line length (1 deg latitude ≈ 111.2 km)', () => {
-    expect(lineLength([[-119, 37], [-119, 38]]) / 1000).toBeCloseTo(111.2, 0);
-  });
   it('finds a near pass even between sparse vertices', () => {
     const trail = [[[-119.0, 37.6], [-118.99, 37.6]]] as [number, number][][];          // ~880 m E-W segment
     const lake = [[[-118.995, 37.6009], [-118.995, 37.61]]] as [number, number][][];      // starts ~100 m north of its middle
@@ -135,45 +131,6 @@ describe('geo', () => {
     const sq = [[[0, 0], [1, 0], [1, 1], [0, 1]]] as [number, number][][];
     expect(pointInPolygon([0.5, 0.5], sq)).toBe(true);
     expect(pointInPolygon([1.5, 0.5], sq)).toBe(false);
-  });
-});
-
-describe('trails', () => {
-  it('normalizes and dedupes OSM copies of USFS trails (USFS names cut at 30 chars)', () => {
-    expect(normName('Sherwin Lakes Trail')).toBe(normName('SHERWIN LAKES'));
-    const usfs = [{ id: 'u', name: "Devil's Postpile Boundary Trai (#2634)" }] as any;
-    const osm = [{ id: 'o1', name: "Devil's Postpile Boundary Trail" }, { id: 'o2', name: 'Minaret Falls Trail' }] as any;
-    expect(dedupeTrails(usfs, osm).map((t: any) => t.id)).toEqual(['u', 'o2']);
-  });
-  it('drops non-foot OSM paths', () => {
-    expect(isFootTrail({ name: 'Duck Pass' })).toBe(true);
-    expect(isFootTrail({ name: 'Panorama Mountain Bike Loop' })).toBe(false);
-    expect(isFootTrail({ name: 'X', bicycle: 'designated' })).toBe(false);
-    expect(isFootTrail({ name: 'X', 'piste:type': 'nordic' })).toBe(false);
-  });
-  it('matches waters to trails and applies filters', () => {
-    const trail = { id: 't', name: 'T', source: 'USFS', miles: 6, lengthNote: '', manager: 'Inyo NF', motorized: false,
-      lines: [[[-119.0, 37.6], [-118.99, 37.6]]] };
-    const lake = { id: 'lake:a', name: 'A Lake', kind: 'lake', lines: [[[-118.995, 37.6005], [-118.994, 37.601], [-118.996, 37.601], [-118.995, 37.6005]]] };
-    const land = [{ rings: [[[-119.1, 37.5], [-118.9, 37.5], [-118.9, 37.7], [-119.1, 37.7]]], name: 'Inyo National Forest', key: 'USFS' }];
-    const regs = { features: [{ kind: 'lake', code: '7.50(b)(1)', desc: 'A Lake', lines: lake.lines }], groups: new Map() } as any;
-    const base = { minMiles: 1, maxMiles: 30, maxWaterMeters: 400, landTypes: PUBLIC_LAND, publicOnly: true, tripStart: '2026-07-04', tripEnd: '2026-07-06',
-      excludeClosed: true, regs: 'any', hikerOnly: true, trout: 'any', sort: 'length' } as const;
-    const bbox = { south: 37.5, west: -119.1, north: 37.7, east: -118.9 };
-    const prep = (lands: unknown[]) => prepareRouteData({ bbox, trails: [trail], waters: [lake], land: lands, regs, errors: [] } as any);
-    const p = prep(land);
-    const r = matchRoutes(p, base);
-    expect(r).toHaveLength(1);
-    expect(r[0].waters[0]).toMatchObject({ name: 'A Lake', status: 'warn', land: { key: 'USFS' } });
-    expect(r[0].waters[0].rules[0]).toMatchObject({ code: '7.50(b)(1)', scope: 'water' });
-    expect(matchRoutes(p, { ...base, regs: 'general' })).toHaveLength(0);
-    expect(matchRoutes(prep([]), base)).toHaveLength(0);              // not public land
-    expect(matchRoutes(p, { ...base, maxMiles: 5 })).toHaveLength(0);
-    expect(matchRoutes(p, { ...base, trout: 'release' })).toHaveLength(0); // statewide 5/day
-    expect(matchRoutes(p, { ...base, maxWaterMeters: 10 })).toHaveLength(0); // lake is ~55 m away
-    expect(matchRoutes(p, { ...base, landTypes: ['BLM', 'NPS'] })).toHaveLength(0);   // lake is on Forest Service land
-    expect(matchRoutes(p, { ...base, landTypes: ['USFS'] })).toHaveLength(1);
-    expect(matchRoutes(prep([]), { ...base, publicOnly: false })).toHaveLength(1);   // unmapped land allowed when asked
   });
 });
 
@@ -235,23 +192,6 @@ describe('california-clipped queries', () => {
   });
 });
 
-describe('nearPairs (grid index)', () => {
-  it('matches brute-force nearestBetween on random lines', () => {
-    let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const randLine = (): Line => { let x = -119 + rnd() * 0.2, y = 37.5 + rnd() * 0.2; return Array.from({ length: 2 + Math.floor(rnd() * 20) }, () => [x += (rnd() - 0.5) * 0.01, y += (rnd() - 0.5) * 0.01] as [number, number]); };
-    const A = Array.from({ length: 30 }, () => [randLine(), randLine()]), B = Array.from({ length: 40 }, () => [randLine()]);
-    const proj = projector(37.6), max = 800;
-    const exact = nearPairs(A, B, proj, max, 0), simplified = nearPairs(A, B, proj, max, 10);
-    for (let a = 0; a < A.length; a++) for (let b = 0; b < B.length; b++) {
-      const brute = nearestBetween(A[a], B[b], proj, max), fast = exact.get(a)?.get(b) ?? null;
-      expect(fast === null).toBe(brute === null);
-      if (brute && fast) expect(fast.meters).toBeCloseTo(brute.meters, 6);
-      const s = simplified.get(a)?.get(b);
-      if (brute && brute.meters < max - 20) expect(Math.abs(s!.meters - brute.meters)).toBeLessThanOrEqual(20); // within 2x tolerance
-    }
-  });
-});
-
 import { citedBooklets, currentBooklet, freshness } from './regdata';
 
 describe('regulation freshness', () => {
@@ -270,27 +210,13 @@ describe('regulation freshness', () => {
   });
 });
 
-import { decodeLine } from './trails';
 import { summarizeGroup } from './rules';
 
-describe('worker transfer and static tiles', () => {
-  it('prepared search results survive structuredClone (what postMessage does)', () => {
-    const lake = { id: 'lake:a', name: 'A Lake', kind: 'lake', lines: [[[-118.995, 37.6005], [-118.994, 37.601], [-118.996, 37.601], [-118.995, 37.6005]]] };
-    const trail = { id: 't', name: 'T', source: 'USFS', miles: 6, lengthNote: '', manager: 'Inyo NF', motorized: false, lines: [[[-119.0, 37.6], [-118.99, 37.6]]] };
+describe('regulation summaries', () => {
+  it('reads season and bag limit from a table row', () => {
     const group = { kind: KINDS[0], desc: 'A Lake', code: '7.50(b)(1)', rows: [{ code: '7.50(b)(1)', type: 'table', segments: [{ title: 'A Lake', fields: [
       { label: 'Open Season and Special Restrictions', value: 'Last Sat. in Apr. through Nov. 15.' }, { label: 'Daily Bag and Possession Limit', value: '2 trout' }] }] }] };
-    const p = prepareRouteData({ bbox: { south: 37.5, west: -119.1, north: 37.7, east: -118.9 }, trails: [trail], waters: [lake],
-      land: [{ rings: [[[-119.1, 37.5], [-118.9, 37.5], [-118.9, 37.7], [-119.1, 37.7]]], name: 'Inyo National Forest', key: 'USFS' }],
-      regs: { features: [{ kind: 'lake', code: '7.50(b)(1)', desc: 'A Lake', lines: lake.lines }], groups: new Map([['7.50(b)(1)', group]]) },
-      errors: [], notes: [] } as any);
-    const cloned = structuredClone(p); // throws DataCloneError if anything holds a function
-    expect(cloned.near[0].waters[0].rules[0].periods[0]).toEqual({ season: 'Last Sat. in Apr. through Nov. 15.', daily: 2, possession: null });
-    expect(matchRoutes(cloned, { minMiles: 1, maxMiles: 30, maxWaterMeters: 400, landTypes: PUBLIC_LAND, publicOnly: true, tripStart: '2026-07-04', tripEnd: '2026-07-04',
-      excludeClosed: true, regs: 'any', hikerOnly: true, trout: 'keep', sort: 'length' })[0].waters[0].trout).toMatchObject({ open: true, daily: 2 });
-    expect(summarizeGroup(group as any, group, 'water').periods).toHaveLength(1);
-  });
-  it('decodes delta-encoded tile coordinates', () => {
-    expect(decodeLine([-11900000, 3760000, 1000, -500, 1000, 0])).toEqual([[-119, 37.6], [-118.99, 37.595], [-118.98, 37.595]]);
+    expect(summarizeGroup(group as any, group, 'water').periods).toEqual([{ season: 'Last Sat. in Apr. through Nov. 15.', daily: 2, possession: null }]);
   });
 });
 

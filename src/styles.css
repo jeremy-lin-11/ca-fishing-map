@@ -5,6 +5,7 @@ body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-ser
 #mapwrap{flex:1;position:relative}
 #map{position:absolute;inset:0}
 h1{font-size:18px;margin:0 0 10px}
+h1 .subtitle{font-weight:400;color:#57606a}
 h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#57606a;margin:14px 0 6px}
 #search{display:flex;gap:6px}
 #search input{flex:1;padding:7px;border:1px solid #c5ccd3;border-radius:6px}
@@ -29,23 +30,9 @@ select{width:100%;padding:6px;border-radius:6px;border:1px solid #c5ccd3}
 .lbl{color:#57606a}
 details summary{cursor:pointer;font-weight:600}
 
-.tabs{display:flex;gap:4px;margin:12px 0 4px}
-.tabs button{flex:1;background:#e7ebef;color:#1c2630}
-.tabs button.active{background:#1f6feb;color:#fff}
-.routeform label{display:block;margin:4px 0}
-.routeform .row{display:flex;gap:8px}
-.field{display:flex;flex-direction:column;gap:2px;flex:1}
-.field span{font-size:12px;color:#57606a}
-.field input{padding:6px;border:1px solid #c5ccd3;border-radius:6px;width:100%}
-.routeform button{margin-top:8px;width:100%}
-.routeform button:disabled{opacity:.6;cursor:wait}
-.route.selected{border-color:#8250df;box-shadow:0 0 0 1px #8250df}
-.routehead{display:flex;justify-content:space-between;align-items:baseline;width:100%;background:none;color:inherit;padding:0;text-align:left}
-.routehead .miles{color:#8250df;font-weight:600;white-space:nowrap;margin-left:8px}
 .linkbtn{background:none;color:#0969da;padding:0;font-weight:600}
 .linkbtn:hover{text-decoration:underline}
 .warn-text{color:#9a6700}
-.field input[type=date]{font:inherit}
 
 .landpicker{margin:4px 0 6px 4px;font-size:12px}
 .landpicker .presets{display:flex;gap:4px;margin-bottom:4px}
@@ -75,8 +62,6 @@ details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weig
 .about summary{cursor:pointer;font-weight:600}
 .about ul{padding-left:18px}
 .crash{border-color:#cf222e}
-.safety{font-size:12px;background:#fff1f0;border:1px solid #ffb3ad;border-radius:6px;padding:6px 8px}
-.tabs button{font-size:12px;padding:7px 6px}
 
 /* Fishing-check verdict */
 .summary{border-radius:8px;padding:10px 12px;margin:8px 0;border:1px solid;border-left-width:5px;background:#fff}
@@ -89,14 +74,8 @@ details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weig
 .chip.ok{border-color:#1a7f37;color:#116329}.chip.warn{border-color:#bf8700;color:#7d4e00}.chip.no{border-color:#cf222e;color:#a40e26}
 .card details>summary{font-size:13px;color:#57606a}
 
-/* More filters */
-details.more{margin:6px 0;padding:6px 8px;border:1px solid #d0d7de;border-radius:6px;background:#fff}
-details.more summary{display:flex;align-items:center;gap:8px}
-details.more[open] summary{margin-bottom:4px}
-details.more .linkbtn{margin:0 0 0 auto;width:auto;font-size:12px}
-.count{font-size:11px;font-weight:600;background:#ddf4ff;color:#0969da;border-radius:10px;padding:1px 7px}
-
 /* Layers control over the map */
+.count{font-size:11px;font-weight:600;background:#ddf4ff;color:#0969da;border-radius:10px;padding:1px 7px}
 .locate{position:relative}
 .locate a{display:flex;align-items:center;justify-content:center;color:#1c2630}
 .locate a.busy{color:#0a84ff;animation:locate-pulse 1s ease-in-out infinite}
@@ -122,11 +101,9 @@ details.more .linkbtn{margin:0 0 0 auto;width:auto;font-size:12px}
   #panel[data-sheet=full]{height:calc(100dvh - 48px)}
   .sheet-handle{display:flex;justify-content:center;position:sticky;top:0;z-index:2;width:calc(100% + 24px);margin:0 -12px 2px;padding:9px 0 7px;
     background:#f6f8fa;border-radius:14px 14px 0 0;touch-action:none;cursor:grab}
-  .results{scroll-margin-top:30px} /* below the sticky handle when scrolled into view */
   .sheet-handle span{width:40px;height:5px;border-radius:3px;background:#afb8c1}
   h1{font-size:16px}
   .titlebar{margin-bottom:8px}
-  .tabs{margin:8px 0 4px}
   #search input,select,.field input{font-size:16px} /* below 16px iOS zooms the page on focus */
   .leaflet-bottom{bottom:148px}
   .maplayers-panel{width:min(300px,calc(100vw - 20px));max-height:calc(100dvh - 148px - 70px)}

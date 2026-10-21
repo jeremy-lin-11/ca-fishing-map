@@ -1,10 +1,10 @@
 // Fishing rules for one water on given dates: open/closed and the trout limit, from CDFW special regulations,
-// district general regulations (§7.00) and the statewide default (§5.85). Shared by the point check and route search.
+// district general regulations (§7.00) and the statewide default (§5.85).
 import type { RegGroup } from './regdata';
 import { isOpenOn, parseSeason, type Season } from './season';
 
 // One season period of a regulation entry ("Last Sat. in Apr. through Jul. 31 | 5 trout"). Plain data (no parsed
-// functions) so results can be posted from the search Web Worker; seasons are parsed on use and cached.
+// functions); seasons are parsed on use and cached.
 export interface Period { season: string; daily: number | null; possession: number | null }
 
 const seasonCache = new Map<string, Season | null>();

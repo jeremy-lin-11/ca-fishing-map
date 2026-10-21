@@ -7,10 +7,8 @@ import ResultPanel from './ResultPanel';
 import PlaceSearch from './PlaceSearch';
 import About, { IOSInstallTip } from './About';
 import ErrorBoundary from './ErrorBoundary';
-import RoutesPanel from './RoutesPanel';
-import ShorePanel from './ShorePanel';
+import OfflineAreas, { type OfflineProps } from './OfflineAreas';
 
-export type Tab = 'check' | 'routes' | 'shore';
 // On narrow screens the sidebar is a bottom sheet over a full-screen map: just the search and tabs, half or most of the screen.
 export type Sheet = 'min' | 'half' | 'full';
 const SHEETS: Sheet[] = ['min', 'half', 'full'];
@@ -49,13 +47,10 @@ function SheetHandle({ sheet, onSheet, panel }: { sheet: Sheet; onSheet: (s: She
 }
 
 interface Props {
-  tab: Tab;
-  onTab: (t: Tab) => void;
   notice: string | null;
   online: boolean;
   offlineFrom: SavedArea | null;
-  routes: Parameters<typeof RoutesPanel>[0];
-  shore: Parameters<typeof ShorePanel>[0];
+  offline: OfflineProps;
   sheet: Sheet;
   onSheet: (s: Sheet) => void;
   water: WaterSelection;
@@ -77,24 +72,17 @@ function CopyLink() {
   return <button type="button" className="copylink" onClick={copy} title="Copy a link to this view">{copied ? 'Copied!' : 'Copy link'}</button>;
 }
 
-export default function Sidebar({ tab, onTab, notice, online, offlineFrom, near, routes, shore, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
+export default function Sidebar({ notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
   const panel = useRef<HTMLElement>(null);
   return (
     <aside id="panel" ref={panel} data-sheet={sheet}>
       <SheetHandle sheet={sheet} onSheet={onSheet} panel={panel} />
       <div className="titlebar">
-        <h1>CA Public Land &amp; Fishing</h1>
+        <h1>Can I Fish Here? <span className="subtitle">California</span></h1>
         <CopyLink />
       </div>
       <PlaceSearch onFly={onFly} near={near} />
-      <div className="tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'check'} className={tab === 'check' ? 'active' : ''} onClick={() => { onTab('check'); if (sheet === 'min') onSheet('half'); }}>Fishing check</button>
-        <button type="button" role="tab" aria-selected={tab === 'routes'} className={tab === 'routes' ? 'active' : ''} onClick={() => { onTab('routes'); if (sheet === 'min') onSheet('half'); }}>Backpacking routes</button>
-        <button type="button" role="tab" aria-selected={tab === 'shore'} className={tab === 'shore' ? 'active' : ''} onClick={() => { onTab('shore'); if (sheet === 'min') onSheet('half'); }}>Shore spots</button>
-      </div>
 
-      {tab === 'shore' ? <ErrorBoundary name="shore spots"><ShorePanel {...shore} /></ErrorBoundary>
-        : tab === 'routes' ? <ErrorBoundary name="route search"><RoutesPanel {...routes} /></ErrorBoundary> : <>
       <section>
         <h2>Water type at clicked point</h2>
         <select value={water} onChange={e => onWater(e.target.value as WaterSelection)}>
@@ -114,7 +102,7 @@ export default function Sidebar({ tab, onTab, notice, online, offlineFrom, near,
           : result ? <ErrorBoundary name="fishing check" key={`${result.point.lat},${result.point.lng}`}><ResultPanel r={result} /></ErrorBoundary>
           : <p className="hint">Tap or click anywhere on the map to see land status, whether fishing is legal there, and special regulations.</p>}
       </section>
-      </>}
+      <OfflineAreas {...offline} />
       <IOSInstallTip />
       <About />
       <p className="disclaimer">Informational only. Regulations change and many waters have special rules. Always confirm in the current{' '}

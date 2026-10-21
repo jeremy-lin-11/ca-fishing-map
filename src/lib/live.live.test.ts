@@ -3,7 +3,8 @@
 import { execFileSync } from 'node:child_process';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { setHttp } from './http';
-import { analyzePoint, type Analysis } from './analyze';
+import { analyzePoint, fetchPoint, interpret, type Analysis } from './analyze';
+import { fetchOffline, offlineRaw } from './offline';
 import { regsFreshness } from './regdata';
 import { CONFIG } from '../config';
 
@@ -72,6 +73,20 @@ describe('live services', () => {
     expect(a.lands[0]?.key).toBe('LADWP');
     expect(a.landBadge.text).toBe('Public');
   });
+  it('offline area around Crowley Lake answers like the online check', async () => {
+    const o = await fetchOffline({ south: 37.55, west: -118.80, north: 37.66, east: -118.66 });
+    expect(o.land.length).toBeGreaterThan(0);
+    expect(o.lakes.length).toBeGreaterThan(0);
+    for (const [lat, lng] of [[37.5934, -118.7364], [37.6445, -118.7230]]) { // lake surface; Owens River below the dam
+      const p = { lat, lng }, day = new Date(2026, 6, 4);
+      const online = interpret(p, 'auto', await fetchPoint(p, 12), day);
+      const offline = interpret(p, 'auto', offlineRaw(structuredClone(o), p, 12), day);
+      expect(offline.water).toBe(online.water);
+      expect(offline.landBadge.status).toBe(online.landBadge.status);
+      expect(offline.trout).toEqual(online.trout);
+      expect(offline.regs?.special.map(g => g.code).sort()).toEqual(online.regs?.special.map(g => g.code).sort());
+    }
+  }, 180_000);
   it('regulation freshness: dataset date and cited booklet', async () => {
     const f = await regsFreshness(CONFIG.regs, new Date(2026, 9, 14));
     console.log('freshness', JSON.stringify(f));

@@ -7,15 +7,11 @@ import { ALL_LAND, ownershipKey, ownershipWhere } from '../lib/land';
 import type { AgencyKey } from '../regs';
 import type { LatLng } from '../types';
 import { EsriDynamicLayer, EsriFeatureLayer, EsriImageLayer } from './EsriLayers';
-import RouteLayers from './RouteLayers';
-import ShoreLayers from './ShoreLayers';
-import type { ShoreResult, ShoreSpot } from '../lib/shore';
 import CaliforniaClip from './CaliforniaClip';
 import LocateControl from './LocateControl';
 import type { Basemap } from './MapLayers';
 import { CA_RINGS } from '../data/california';
 import type { BBox } from '../lib/geo';
-import type { Route, WaterAccess } from '../lib/trails';
 
 // Data overlays live in their own pane (same stacking as Leaflet's overlayPane), clipped to California.
 const DATA = 'caData';
@@ -54,18 +50,6 @@ function FlyTo({ target }: { target: (LatLng & { zoom?: number }) | null }) {
   return null;
 }
 
-// OSM's attribution guidelines ask for a visible credit wherever its data is drawn: route and shore-spot trails here.
-const OSM_CREDIT = '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>';
-function OsmCredit({ active }: { active: boolean }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!active) return;
-    map.attributionControl?.addAttribution(OSM_CREDIT);
-    return () => { map.attributionControl?.removeAttribution(OSM_CREDIT); };
-  }, [map, active]);
-  return null;
-}
-
 interface Props {
   basemap: Basemap;
   visible: Record<OverlayId, boolean>;
@@ -75,14 +59,9 @@ interface Props {
   onClick: (p: LatLng, zoom: number) => void;
   onView: (b: BBox, zoom: number) => void;
   initialView?: { lat: number; lng: number; zoom: number }; // from a shared link
-  routes: Route[];
-  selectedRoute: string | null;
-  onSelectRoute: (id: string) => void;
-  onCheckWater: (w: WaterAccess) => void;
-  shore: { result: ShoreResult | null; spots: ShoreSpot[]; selectedId: string | null; onSelect: (id: string) => void }; // empty off the Shore tab
 }
 
-export default function MapView({ basemap, visible, mapLand, marker, flyTarget, onClick, onView, initialView, routes, selectedRoute, onSelectRoute, onCheckWater, shore }: Props) {
+export default function MapView({ basemap, visible, mapLand, marker, flyTarget, onClick, onView, initialView }: Props) {
   const { layers, regs, depth } = CONFIG;
   // Unchecked land types are filtered on the server, so they're never downloaded.
   const landWhere = ownershipWhere(ALL_LAND.filter(k => mapLand.includes(k)));
@@ -125,18 +104,12 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
       {visible.rca && <EsriFeatureLayer pane={DATA} url={depth.rca} minZoom={7} style={rcaStyle} tooltip={rcaTooltip} />}
 
       <Polyline positions={STATE_LINE} interactive={false} pathOptions={{ color: '#57606a', weight: 1.5, opacity: 0.8 }} />
-      <Pane name="routes" style={{ zIndex: 460 }}>
-        <RouteLayers routes={routes} selectedId={selectedRoute} onSelect={onSelectRoute} onCheckWater={onCheckWater} />
-        <ShoreLayers {...shore} />
-        <CaliforniaClip pane="routes" />
-      </Pane>
 
       {marker && <CircleMarker center={[marker.lat, marker.lng]} radius={7} pathOptions={{ color: '#fff', weight: 2, fillColor: '#1f6feb', fillOpacity: 1 }} />}
       <ClickHandler onClick={onClick} />
       <ViewReporter onView={onView} />
       <FlyTo target={flyTarget} />
       <LocateControl />
-      <OsmCredit active={routes.length > 0 || shore.spots.length > 0} />
     </MapContainer>
   );
 }

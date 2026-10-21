@@ -28,3 +28,16 @@ export function pick(a: Attrs, keys: string[]): string {
   }
   return '';
 }
+
+// Features with geometry (outSR 4326), following exceededTransferLimit for up to `pages` pages.
+export async function arcFeatures(url: string, params: Record<string, string>, pages = 5): Promise<{ attributes: Attrs; geometry: any }[]> {
+  const out: { attributes: Attrs; geometry: any }[] = [];
+  for (let page = 0; page < pages; page++) {
+    const body = new URLSearchParams({ f: 'json', returnGeometry: 'true', outSR: '4326', resultOffset: String(out.length), ...params });
+    const j = await (await http(`${url}/query`, { method: 'POST', body })).json();
+    if (j.error) throw new Error(j.error.message || 'ArcGIS query failed');
+    out.push(...j.features);
+    if (!j.exceededTransferLimit) break;
+  }
+  return out;
+}

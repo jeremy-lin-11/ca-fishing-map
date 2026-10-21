@@ -1,7 +1,7 @@
 {
-  "name": "California Public Land & Fishing Map",
-  "short_name": "CA Fishing Map",
-  "description": "Public land, CDFW fishing regulations, seasons and trout limits, and backpacking routes near fishable water. Works offline in saved areas.",
+  "name": "Can I Fish Here? California",
+  "short_name": "Can I Fish Here?",
+  "description": "Tap a spot in California to see whether you can legally fish there: public land access, CDFW freshwater regulations, seasons and trout limits. Works offline in saved areas.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

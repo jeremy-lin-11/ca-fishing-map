@@ -1,83 +1,127 @@
-# California Public Land & Fishing Map
+# Can I Fish Here? California
 
-A map of California for anglers. Click anywhere to see who owns the land, whether you can fish there,
-the CDFW regulations for that water (season and trout limit on a given day), and depth. Three tabs:
+**Tap a spot on the map and find out whether you can legally fish there.**
 
-- **Fishing check**: land ownership, legality, special regulations, today's season and trout limit, depth.
-- **Backpacking routes**: trails in the map view that pass near fishable water, filtered by length, land type,
-  trip dates, special regulations and whether trout may be kept.
-- **Shore spots**: rocky shoreline near public coastal access for rockfishing, with an access-difficulty rating.
+**Live:** https://jeremy-lin-11.github.io/ca-fishing-map/
 
-It works as an installable app, offline in saved areas, and every view is a shareable link.
+## Why this exists
 
-**Live:** https://jeremy-lin-11.github.io/ca-fishing-map/ (GitHub Pages, deployed on every push to `main`).
+If you fish the ocean in California, there's an app for that. The state's **CA FishLegal** app uses the
+Department of Fish and Wildlife's (CDFW) saltwater map data to show the rules where you're standing.
 
-```
-npm install
-npm run extract:osm   # one-time (1-3 h, resumable): OpenStreetMap trails/lakes/streams -> public/osm/
-npm run build:places  # place-search index -> public/places.json (rerun after the extract)
-npm run dev           # http://localhost:5173
-npm test              # offline unit tests
-npm run test:live     # known points/areas against the live data services (needs network)
-npm run build         # type-check + production build to dist/
-```
+Freshwater has nothing like it. The rules for lakes, rivers and streams live in a printed pamphlet: the
+*Freshwater Sport Fishing Regulations* booklet. Answering "can I fish this creek, and what can I keep?" means doing
+several things yourself:
 
-Informational only. Always confirm against the current CDFW regulations.
+- Working out which of California's fishing districts you're in.
+- Searching dozens of pages of special rules for the name of your water. Many waters have their own seasons,
+  bag limits or closures.
+- Checking whether today falls inside the season.
+- Separately working out whether the land you're standing on is public at all.
+
+CDFW does publish map data that links waters to booklet sections. But it isn't combined with land ownership,
+it doesn't tell you what applies on a given day, and its text was copied from an older printed booklet.
+
+This tool fills that gap for **freshwater**. It also checks land access, so it says both *whether the rules
+allow fishing* and *whether you're allowed to be there*.
+
+## What it tells you
+
+Tap anywhere in California and you get one clear verdict (yes / check first / no), with the reasons:
+
+- **Who owns the land.** For example Bureau of Land Management (BLM), National Forest, National Park, state land,
+  city or water district, tribal land, military, or likely private. Most BLM and National Forest land is open to
+  the public. Military land and most private land are not.
+- **Which fishing rules apply to that water.** The water's special regulations if it has any, the district rules
+  for its area, and the statewide default otherwise.
+- **Whether it's open today, and the trout limit.** How many trout you can keep per day, and how many you can have
+  in total.
+- **Warnings** where the rules can't be applied automatically. For example, rules for streams where salmon and
+  steelhead run, or a regulation the tool couldn't match to the water with confidence.
+- **Ocean basics too:** Marine Protected Areas (no-take or limited-take zones), rockfish depth limits, and depth.
+
+The map can also show public land by owner, waters with special regulations, protected marine areas and depth
+charts. You can search for a town or lake, or jump to your current location.
+
+**Works without signal.** Before a trip, save a map area. Inside it, fishing checks still work with no
+connection. That's useful in the backcountry, where there usually isn't any.
+
+**Shareable.** The page address always matches what you're looking at, so you can send someone a link to the
+exact spot you checked.
+
+**Install it** like an app from your phone's browser ("Add to Home Screen").
+
+### Important
+
+This is **not an official CDFW tool**. It combines public government data, which can be out of date or wrong.
+In particular, the regulation text in CDFW's data comes from the 2021–2022 booklet, and the app warns you about
+this. Always confirm against the current CDFW
+[freshwater](https://wildlife.ca.gov/Fishing/Inland/Regulations) and
+[ocean](https://wildlife.ca.gov/Fishing/Ocean/Regulations) regulations before you fish.
 
 ---
 
 ## System design
 
-### Architecture
-
-The app is a static single-page app with no backend. Everything it knows comes from public government data
-services, queried directly from the browser, plus a few static files generated at build time.
+### Commands
 
 ```
-                                 Browser
- ┌──────────────────────────────────────────────────────────────────────────────────────┐
- │  React UI (src/components)                                                            │
- │    Sidebar: Fishing check │ Backpacking routes │ Shore spots      MapView (Leaflet)   │
- │        │                         │                    │              │               │
- │        ▼                         ▼                    ▼              ▼               │
- │  lib/analyze.ts         lib/routeSearch.ts ──► Web Worker        esri-leaflet layers  │
- │  fetchPoint → interpret        (routes.worker.ts)                (grid cells clipped  │
- │        │                 trails.ts · shore.ts · rules.ts           to California)    │
- │        │                         │                                                    │
- │        └──────────┬──────────────┘   lib/ = plain TypeScript: no React, no Leaflet    │
- │                   ▼                                                                   │
- │             lib/http.ts  (one swappable transport; tests use curl)                    │
- │                                                                                       │
- │  Service worker (public/sw.js): app shell + saved basemap tiles                       │
- │  IndexedDB: saved offline areas      Cache Storage: USGS tiles      URL: app state    │
- └───────────────┬──────────────────────────────────────────────────┬────────────────────┘
-                 │ live queries (ArcGIS REST, image services)       │ static files (same origin)
-                 ▼                                                  ▼
-  CDFW regulations, MPAs, shoreline, groundfish areas   public/osm/  OSM trails/lakes/streams tiles
-  CAL FIRE land ownership · Coastal Commission access   public/places.json  place-search index
-  USFS trails · Esri Living Atlas (names, water, counties)
+npm install
+npm run dev           # http://localhost:5173
+npm test              # offline unit tests
+npm run test:live     # known points against the live data services (needs network)
+npm run build         # type-check + production build to dist/
+npm run extract:osm   # one-time (1-3 h, resumable): OpenStreetMap lakes/streams/trails -> public/osm/
+npm run build:places  # place-search index -> public/places.json (rerun after the extract)
+```
+
+### Architecture
+
+A static single-page app (React + TypeScript + Vite + Leaflet) with no backend. Everything it knows comes from
+public agency data services queried directly from the browser, plus a place-search index generated ahead of time.
+
+```
+                                   Browser
+ ┌───────────────────────────────────────────────────────────────────────────────────┐
+ │  React UI (src/components)                                                        │
+ │    Sidebar: place search, verdict, offline areas        MapView (Leaflet)         │
+ │        │                                                    │                     │
+ │        ▼                                                    ▼                     │
+ │  lib/analyze.ts  fetchPoint → interpret            esri-leaflet overlays          │
+ │  lib/rules.ts, season.ts, regdata.ts, land.ts      (cells clipped to California,  │
+ │  lib/offline.ts  saved area → same interpret        PBF queries, response cache)  │
+ │        │            lib/ = plain TypeScript: no React, no Leaflet                 │
+ │        ▼                                                                          │
+ │  lib/http.ts  (one swappable transport; tests use curl)                           │
+ │                                                                                   │
+ │  Service worker (public/sw.js): app shell + saved basemap tiles                   │
+ │  IndexedDB: saved offline areas     Cache Storage: USGS tiles     URL: app state  │
+ └───────────────┬───────────────────────────────────────────────┬───────────────────┘
+                 │ live queries (ArcGIS REST, image services)    │ static files (same origin)
+                 ▼                                               ▼
+  CDFW regulations, MPAs, RCA lines · CAL FIRE land ownership    public/places.json
+  Esri Living Atlas (unit names, water bodies, counties)         (towns + OSM-named waters)
   NOAA elevation/depth · USGS basemaps
 ```
 
 ### Design principles
 
-- **Logic is plain TypeScript.** Everything in `src/lib/` runs in Node without a browser, so lookups and
-  decisions are unit-tested and checked against live services (`npm run test:live`). React components only render.
-- **Fetch, then interpret.** Each feature splits into an I/O step that collects raw service responses and a pure
-  step that turns them into an answer: `fetchPoint` → `interpret`, `fetchRouteData` → `prepareRouteData` →
-  `matchRoutes`. Filters, water-type changes and trip dates re-run only the pure step, instantly. The same
-  `interpret` answers offline from saved data, so offline and online answers can't drift.
+- **Logic is plain TypeScript.** Everything in `src/lib/` runs in Node without a browser, so lookups and decisions
+  are unit-tested and checked against live services (`npm run test:live`). React components only render.
+- **Fetch, then interpret.** `fetchPoint` collects raw service responses. `interpret` is a pure function that turns
+  them into the verdict. Changing the water type re-runs only `interpret`, instantly. Offline answers rebuild the
+  same raw input from saved data and run the same `interpret`, so online and offline answers can't drift.
 - **Unknown is a valid answer.** Unreadable season text, unverified regulation sections and anadromous-only
   district rules are reported as "unclear" or as caveats, never guessed as open.
-- **California only.** The basemap shows everywhere, but data is only requested for map cells that touch the
-  state (border cells are queried with the cell clipped to the state polygon) and drawn clipped to the state line.
-- **No servers, no keys.** Public-domain basemaps (USGS, NOAA), public agency services and static files mean
-  free hosting and no secrets. Production makes no geocoder or Overpass requests.
+- **California only.** The basemap shows everywhere, but data is only requested for map cells that touch the state
+  and drawn clipped to the state line.
+- **No servers, no keys.** Public-domain basemaps (USGS, NOAA), public agency services and static files mean free
+  hosting and no secrets.
 
-### Request flows
+### The fishing check
 
-**Fishing check** (`lib/analyze.ts`). One click fires about a dozen parallel queries (the regulation lookup alone is four map layers plus the text table). Each one fails soft (`null`)
-and is listed under "Could not load":
+`lib/analyze.ts`. One tap fires about a dozen parallel queries; the regulation lookup alone is four map layers plus
+the text table. Each query fails soft (`null`) and is listed under "Could not load":
 
 | Query | Service | Used for |
 |---|---|---|
@@ -90,35 +134,44 @@ and is listed under "Could not load":
 | elevation/depth | NOAA NCEI DEM | ocean depth, lake surface elevation |
 | RCA lines, lake contours | CDFW | groundfish depth lines, Salton Sea depth |
 
-`interpret` then decides the water type, the verdict, and the season and trout limit for today
-(`rules.troutRule`). Changing the water type re-interprets without refetching.
+`interpret` then decides the water type and the verdict. It also works out the season and trout limit for today
+(`rules.troutRule`) from the season text, which `season.ts` parses into date ranges ("Last Sat. in Apr. through
+Nov. 15").
 
-**Backpacking routes** (`lib/trails.ts`, in a Web Worker). For the current view (≤60 km):
-1. Fetch Forest Service trails (official mileage), OSM trails and waters (static tiles), CAL FIRE land, and CDFW
-   regulation polygons and text: about five requests, not one per water.
-2. **Prepare once** (~0.5–1 s, off the main thread): find which waters come within 800 m of which trails using
-   `geo.nearPairs` (a uniform-grid index over Douglas–Peucker-simplified lines), then assess each water access point
-   once: owner, special regulations, district rules.
-3. **Filter per change** (~0–20 ms): length, land types, distance, trip dates (seasons and trout limits evaluated per
-   day), special regulations, trout possession. The worker's result is plain data (structured-clone safe), so
-   seasons are parsed lazily on the main thread (`rules.seasonOf`).
+### Map overlays
 
-**Shore spots** (`lib/shore.ts`, in the worker). For the current view (≤40 km): Coastal Commission access points
-and public-land OSM trails within reach of rocky shoreline (CDFW shoreline types). They're ranked by weighted metres
-of rock within 500 m. Each spot gets one NOAA elevation transect inland from the waterline (all spots in one
-multipoint request) for bluff height and steepness. Difficulty (easy/moderate/hard) is shown, never used to
-exclude a spot by default. No-take MPAs are hidden unless asked for.
+`components/EsriLayers.tsx` wraps esri-leaflet feature layers, which load features per grid cell:
 
-**Offline** (`lib/offline.ts`, `tiles.ts`, `areaStore.ts`, `public/sw.js`). "Save this map view" stores a prepared
-route search plus the raw inputs an offline fishing check needs (land polygons with attributes, all regulation
-polygons and text rows, lake outlines) in IndexedDB, and caches USGS topo tiles for zoom 8–14 (≤4,000) in Cache
-Storage. Offline, a check rebuilds the same `Raw` the services would have returned and runs the same `interpret`.
-The service worker serves the app shell network-first and saved tiles cache-first, and never caches live
-regulation data (so it can't go silently stale while online).
+- **Skip or clip cells outside California.** Cells that miss the state aren't requested. Border cells are queried
+  with the cell clipped to the state polygon (`polygon-clipping`), because a plain rectangle pulled 35–59% of its
+  vertices from neighbouring states.
+- **Share cells across zoom pairs.** Zoom levels share cells in pairs (8–9, 10–11, …): at the odd level a cell
+  covers the same ground with the same simplification, so the query is identical. Stock esri-leaflet re-downloads
+  every cell at every zoom level.
+- **Protobuf with an in-memory cache.** `lib/pbfQuery.ts` requests `f=pbf` with explicit `quantizationParameters`
+  (the server's default rounding is off by up to 35 m) and keeps an LRU cache of decoded responses. That's about 3×
+  fewer bytes than gzipped GeoJSON (1.0 → 0.31 MB for one Sierra view), and zooming within a pair or panning back is
+  instant.
+- **Canvas rendering.** Land ownership can put 5,000–29,000 parcels in view, so the map uses canvas
+  (`preferCanvas`), display-only layers aren't hit-tested, and land starts at zoom 8 (large holders only at 8–9).
 
-**Shareable links** (`lib/urlState.ts`). The URL fragment always holds the view, tab, clicked point, layers, land
-types, filters (with trip dates) and selected route, updated with `replaceState`. Opening a link re-runs its
-check or search. Defaults are omitted; malformed parts are ignored.
+### Offline areas
+
+`lib/offline.ts`, `tiles.ts`, `areaStore.ts`, `public/sw.js`. "Save this map view" (up to 60 km across) stores the
+raw inputs an offline check needs in IndexedDB:
+- land polygons with their ownership attributes;
+- every regulation polygon and its text rows;
+- lake and reservoir polygons from the same Esri water-bodies layer the online check uses.
+
+It also caches USGS topo tiles for zoom 8–14 (at most 4,000) in Cache Storage. The service worker serves the app
+shell network-first and saved tiles cache-first. It never caches live regulation data, so that can't go silently
+stale while online. Areas saved by earlier versions, which stored OpenStreetMap lakes, still load.
+
+### Shareable links
+
+`lib/urlState.ts`. The URL fragment holds the view, the tapped point, water type, layers and land types, updated
+with `replaceState`. Opening a link re-runs its check. Defaults are omitted, and malformed or retired parts (the old
+route-search `tab`, `f`, `route`) are ignored.
 
 ### Data sources and why
 
@@ -127,50 +180,35 @@ check or search. Defaults are omitted; malformed parts are ignored.
 | Land ownership | CAL FIRE California Land Ownership | California-only, every owner type incl. LADWP, districts, nonprofits, tribal |
 | Regulations | CDFW regulation viewer service (map layers + text table keyed by Title 14 section) | the official data behind CDFW's own viewer |
 | Seasons & limits | parsed from that text (`season.ts`, `rules.ts`) | no structured season data exists |
-| Trails | USFS National Forest System Trails + OpenStreetMap | USFS for official mileage; OSM for parks and everything else |
-| Lakes & streams | OpenStreetMap (static extract) | named, statewide, geometry suited to proximity |
-| Coast | CDFW shoreline types (NOAA ESI codes), Coastal Commission access points, CDFW groundfish areas | rock type, real access details, management areas |
-| Elevation & depth | NOAA NCEI DEM mosaic | ocean depth and coastal bluff heights at metre resolution |
+| Lakes | Esri USA Detailed Water Bodies | lake vs. stream at a point, online and offline |
+| Elevation & depth | NOAA NCEI DEM mosaic | ocean depth and lake surface elevation |
 | Basemaps | USGS National Map (topo, imagery), NOAA relief | public domain: fine for public use and offline caching |
-| Place search | Census places + OSM names → `public/places.json` | no third-party geocoder; works offline |
-
-### Performance safeguards
-
-Each of these came from a real problem:
-
-| Problem | Fix |
-|---|---|
-| Re-matching every trail against every water on each filter change took 18–23 s and froze the page | prepare once per search with a grid index (2 s → 130 ms for proximity), filter in ~0–20 ms; `perf.live.test.ts` guards it |
-| CAL FIRE parcels put 5,000–29,000 shapes in view as SVG elements, locking the page | canvas rendering (`preferCanvas`), display-only layers non-interactive, land from zoom 8, coarse (large holders only) at zoom 8–9 |
-| Border map cells downloaded neighbouring states' features (35–59% of vertices) | skip cells outside California; query border cells with the cell ∩ state polygon (`polygon-clipping`) |
-| Overpass took 30–90 s and rate-limited | statewide static extract (`scripts/extract-osm.mjs`), loaded per view and trimmed to it |
-| Search work blocked the UI | route and shore searches run in a Web Worker |
+| Place search | Census places + OpenStreetMap names → `public/places.json` | no third-party geocoder; works offline |
 
 ### Correctness safeguards
 
-- **Section-number check** (`regdata.resolveHit`): ~6% of CDFW map features point at the wrong regulation entry
-  (e.g. the "Twin Lakes (Mammoth)" polygon is numbered §7.50(b)(157), which is Twelvemile Creek). Each hit's water
-  name is matched against the text; mismatches are re-pointed to the nearby entry that names the water, or flagged
-  unverified (and never used for trout limits).
-- **Rule order** (`rules.troutRule`): the water's special regulation, then district rules for all streams
-  (§7.00), then the statewide default (§5.85). With no possession limit stated, possession is one daily bag (§1.17).
-- **Freshness** (`regdata.regsFreshness`): CDFW's dataset text cites the booklet it was copied from; the UI shows
+- **Section-number check** (`regdata.resolveHit`). About 6% of CDFW map features point at the wrong regulation
+  entry. For example, the "Twin Lakes (Mammoth)" polygon is numbered §7.50(b)(157), which is Twelvemile Creek. Each
+  hit's water name is matched against the text. Mismatches are re-pointed to the nearby entry that names the water,
+  or flagged unverified and never used for trout limits.
+- **Rule order** (`rules.troutRule`). The water's special regulation comes first, then district rules for all
+  streams (§7.00), then the statewide default (§5.85: 5 daily, 10 in possession). With no possession limit stated,
+  possession is one daily bag (§1.17).
+- **District caveats.** §7.00 district polygons cover whole districts, so "anadromous waters" rules can't be
+  applied per water. They are shown as caveats.
+- **Freshness** (`regdata.regsFreshness`). CDFW's dataset text cites the booklet it was copied from. The UI shows
   that, the dataset's update date, and a warning when it predates the booklet in effect.
-- **Offline parity**: offline answers use the same `interpret` and were checked identical to online answers on
-  real data.
 
 ### Testing
 
-- `npm test`: unit tests for the season parser, rules engine, land classification, geometry (incl. a randomized
-  check that the grid index equals brute force), URL state, places search, offline answers, shore ratings.
-- `npm run test:live`: known places against the real services (e.g. Crowley Lake's two season periods, Point Lobos
-  MPA, Mammoth route search, Pacifica shore spots) and a performance guard. Node's `fetch` doesn't use the HTTP
-  proxy in some environments, so tests swap the transport for curl via `setHttp`.
-- Not automated: in-browser rendering (Leaflet, service worker, IndexedDB). Check those manually.
+- `npm test`: unit tests for the season parser, rules engine, regulation parsing and section check, land
+  classification, geometry, California clipping, URL state, place search and offline answers.
+- `npm run test:live`: known places against the real services (e.g. Crowley Lake's two season periods, the Point
+  Lobos MPA). It also compares PBF layer queries against GeoJSON. Node's `fetch` ignores the HTTP proxy in some
+  environments, so tests swap the transport for curl via `setHttp`.
+- Not automated: in-browser rendering (Leaflet, service worker, IndexedDB, geolocation). Check those manually.
 
----
-
-## Code layout
+### Code layout
 
 ```
 src/
@@ -180,19 +218,15 @@ src/
   lib/               plain TypeScript (no React/Leaflet)
     analyze.ts         fishing check: fetchPoint (I/O) → interpret (pure)
     regdata.ts         CDFW regulation lookup, parsing, section-number check, freshness
-    season.ts          season text → date ranges ("Last Sat. in Apr. through Nov. 15")
+    season.ts          season text → date ranges
     rules.ts           open/closed and trout limit for a water on given dates
-    trails.ts          route search: fetch, prepare (grid proximity), filter
-    shore.ts           shore spots: rocky habitat, access, bluff height, difficulty
     land.ts            CAL FIRE ownership → land type; SQL per land type
-    geo.ts             distances, point-in-polygon, grid-indexed proximity
-    california.ts      "in/touches California", clipped query geometry
     offline.ts, tiles.ts, areaStore.ts   saved areas, tile cache, IndexedDB
-    places.ts, urlState.ts, depth.ts, arcgis.ts, http.ts
-    routes.worker.ts, routeSearch.ts     Web Worker and its client
-  components/        React UI: MapView, Sidebar, ResultPanel, RoutesPanel, ShorePanel, OfflineAreas, About, …
+    pbfQuery.ts        protobuf feature queries + response cache (map overlays)
+    geo.ts, california.ts, places.ts, urlState.ts, depth.ts, arcgis.ts, http.ts
+  components/        React UI: MapView, EsriLayers, Sidebar, ResultPanel, OfflineAreas, LocateControl, About, …
 scripts/
-  extract-osm.mjs    OSM extract → public/osm/ (resumable, polite to Overpass)
+  extract-osm.mjs    OSM extract → public/osm/ (resumable, polite to Overpass); feeds the place index
   build-places.mjs   place-search index → public/places.json
 public/
   sw.js, manifest.webmanifest, icon.svg, _headers (Cloudflare only), osm/, places.json
@@ -200,36 +234,40 @@ public/
   pages.yml          test, build and deploy to GitHub Pages on push to main
 ```
 
-**Pinned internals:** esri-leaflet is pinned to 3.0.19 because `EsriLayers.tsx` overrides its private
-`_isValidCell` and `_buildQuery` (skip or clip cells outside California), `getCellSize` and `_cellCoordsToNwSe`
-(zoom levels share cells in pairs, so zooming one level reuses cached responses), and replaces `Query.run` with a
-protobuf query (`lib/pbfQuery.ts`, ~3x fewer bytes than gzipped GeoJSON). `CaliforniaClip.tsx` uses Leaflet's
-`_latLngToNewLayerPoint`. Re-check both before upgrading.
+**Pinned internals:** esri-leaflet is pinned to 3.0.19. `EsriLayers.tsx` overrides these private methods:
+- `_isValidCell` and `_buildQuery`: skip or clip cells outside California;
+- `getCellSize` and `_cellCoordsToNwSe`: share cells across zoom pairs;
+- `Query.run`: replaced with the protobuf query.
 
-**Rules quoted by hand:** the shore-angler rockfish rules card (`ShorePanel.tsx`) quotes CDFW's Groundfish Summary
-with its date; update it when CDFW changes the rules.
+`CaliforniaClip.tsx` also uses Leaflet's private `_latLngToNewLayerPoint`. Re-check all of these before upgrading.
+
+**Earlier features:** a backpacking route search (trails near fishable water) and a shore-spot finder (rocky
+shoreline for rockfishing) were removed to keep the app focused. They are in git history up to commit `303f96e`.
 
 ## Deploying (GitHub Pages)
 
 The site is hosted on GitHub Pages at https://jeremy-lin-11.github.io/ca-fishing-map/. There is no backend, so a
 deploy is just the static `dist/` folder.
 
-**How it deploys:** every push to `main` runs `.github/workflows/pages.yml`, which installs with `npm ci`, runs
-`npm test`, builds with `BASE_PATH=/ca-fishing-map/` and publishes `dist/`. A failing test stops the deploy. To
-redeploy without a code change, run the workflow from the Actions tab (Run workflow). Progress and logs:
+**How it deploys:**
+1. Every push to `main` runs `.github/workflows/pages.yml`.
+2. The workflow installs with `npm ci` and runs `npm test`. A failing test stops the deploy.
+3. It builds with `BASE_PATH=/ca-fishing-map/` and publishes `dist/`.
+
+To redeploy without a code change, run the workflow from the Actions tab (Run workflow). For progress and logs, use
 `gh run list` / `gh run watch`.
 
 **Base path:** Pages serves the site under `/<repo>/`, not the domain root. `vite.config.ts` reads `BASE_PATH`
-(default `/`, so `npm run dev` is unaffected), and static data paths in `src/config.ts` (`places`, `staticOsm`) are
-built from `import.meta.env.BASE_URL`. New same-origin fetches must use `BASE_URL` too, or they'll 404 in
-production. Check a production build locally with:
+(default `/`, so `npm run dev` is unaffected), and the place index path in `src/config.ts` is built from
+`import.meta.env.BASE_URL`. New same-origin fetches must use `BASE_URL` too, or they'll 404 in production. Check a
+production build locally with:
 
 ```
 BASE_PATH=/ca-fishing-map/ npm run build && npx vite preview --base /ca-fishing-map/
 ```
 
-**Refreshing data:** `public/osm/` (~32 MB) and `public/places.json` are committed and deployed as-is. To refresh:
-`npm run extract:osm -- --force`, then `npm run build:places`, commit both and push.
+**Refreshing data:** `public/osm/` (~32 MB, the source of the place index) and `public/places.json` are committed.
+To refresh them, run `npm run extract:osm -- --force`, then `npm run build:places`, then commit both and push.
 
 **One-time setup** (already done): the repo must be public for free Pages, and Settings > Pages > Source is set to
 "GitHub Actions". Renaming the repo changes the URL; the workflow picks up the new name automatically.
@@ -237,12 +275,12 @@ BASE_PATH=/ca-fishing-map/ npm run build && npx vite preview --base /ca-fishing-
 **Caching:** GitHub Pages ignores `public/_headers` and serves every file with a ~10-minute cache, including
 `sw.js`, so installed apps can take a few minutes to pick up a new release.
 
-**Custom domain (optional):** add it under Settings > Pages > Custom domain, then build with `BASE_PATH=/` (change
-the workflow's `BASE_PATH`) since the site moves to the domain root.
+**Custom domain (optional):** add it under Settings > Pages > Custom domain. Then change the workflow's
+`BASE_PATH` to `/`, since the site moves to the domain root.
 
-**Alternative: Cloudflare Pages.** Connect the repo (Workers & Pages > Create > Pages > Connect to Git), build
-command `npm run build`, output `dist`, environment variable `NODE_VERSION=22`, no `BASE_PATH`. Cloudflare honours
-`public/_headers` (service worker never cached, hashed assets immutable).
+**Alternative: Cloudflare Pages.** Connect the repo (Workers & Pages > Create > Pages > Connect to Git). Use build
+command `npm run build`, output `dist`, environment variable `NODE_VERSION=22`, and no `BASE_PATH`. Cloudflare
+honours `public/_headers` (service worker never cached, hashed assets immutable).
 
 Set `CONFIG.feedbackUrl` (src/config.ts) to show a "Report a problem" link in About, e.g.
 `https://github.com/jeremy-lin-11/ca-fishing-map/issues`.

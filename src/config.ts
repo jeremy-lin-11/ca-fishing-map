@@ -49,30 +49,8 @@ export const CONFIG = {
     layers: { districts: 0, lakes: 1, streams: 2, tributary: 3, table: 8 }
   },
 
-  trails: {
-    // USFS National Forest System trails (segments; `trail_cn` groups segments into one trail).
-    usfs: 'https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublish_01/MapServer/0',
-    // OpenStreetMap: trails outside national forests (national/state parks) and named lakes/streams.
-    overpass: 'https://overpass-api.de/api/interpreter',
-    // Static tiles from `npm run extract:osm` (public/osm/). Used first; live Overpass is the fallback.
-    staticOsm: `${import.meta.env.BASE_URL}osm`,
-    // Query Overpass live where static tiles are missing: development only. A public deployment shouldn't send
-    // visitors' browsers to the shared Overpass servers.
-    liveFallback: import.meta.env.DEV,
-    maxSearchKm: 60 // per side; keeps Overpass and geometry queries fast
-  },
-
-  // Shore fishing (rockfish) spots.
-  shore: {
-    // California Coastal Commission public access points (stairs, paths, parking, closures; updated regularly).
-    access: 'https://services9.arcgis.com/wwVnNW92ZHUIr0V0/arcgis/rest/services/AccessPoints/FeatureServer/0',
-    // CDFW BIOS ds3115 shoreline types (NOAA ESI codes: rocky cliffs, wave-cut platforms, riprap…).
-    shoreline: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/biosds3115_fnu/FeatureServer/0',
-    // CDFW BIOS ds3143 recreational groundfish management areas.
-    groundfish: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/biosds3143_fpu/FeatureServer/0',
-    groundfishSummary: 'https://wildlife.ca.gov/Fishing/Ocean/Regulations/Groundfish-Summary',
-    maxSearchKm: 40
-  },
+  // Offline areas: max size per side (keeps the land and regulation downloads to a few MB).
+  offline: { maxKm: 60 },
 
   depth: {
     // NOAA NCEI elevation mosaic. Negative = depth below sea level. Lakes are flat water surface (no lake bottoms).

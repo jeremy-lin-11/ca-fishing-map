@@ -10,8 +10,7 @@ const isInstalled = () => window.matchMedia?.('(display-mode: standalone)').matc
 const SOURCES: [string, string, string][] = [
   ['Fishing regulations, MPAs, rockfish depth lines, Salton Sea depth', 'California Department of Fish and Wildlife (CDFW) public GIS data', 'https://wildlife.ca.gov/Data/GIS'],
   ['Land ownership', 'CAL FIRE, California Land Ownership', 'https://www.fire.ca.gov/what-we-do/fire-resource-assessment-program'],
-  ['Forest Service trails', 'USDA Forest Service, National Forest System Trails', 'https://data.fs.usda.gov/geodata/'],
-  ['Trails, lakes and streams', '© OpenStreetMap contributors (ODbL)', 'https://www.openstreetmap.org/copyright'],
+  ['Place search: lake, stream and trail names', '© OpenStreetMap contributors (ODbL)', 'https://www.openstreetmap.org/copyright'],
   ['Unit names, water bodies, counties, towns', 'Esri Living Atlas (USGS, US Census Bureau)', 'https://livingatlas.arcgis.com'],
   ['Basemaps', 'USGS The National Map (public domain)', 'https://www.usgs.gov/programs/national-geospatial-program/national-map'],
   ['Ocean depth and relief', 'NOAA NCEI and GEBCO', 'https://www.ncei.noaa.gov/products/etopo-global-relief-model'],
@@ -21,7 +20,7 @@ const SOURCES: [string, string, string][] = [
 function Disclaimer() {
   return <>
     <p><b>This is not an official CDFW tool and isn't affiliated with any agency.</b> It combines public data to help you
-      find places to fish, but that data can be out of date, incomplete or wrong. In particular, the regulation text
+      check where fishing is allowed, but that data can be out of date, incomplete or wrong. In particular, the regulation text
       comes from a CDFW dataset copied from an older printed booklet.</p>
     <p>You are responsible for knowing and following the current regulations, land access rules, closures and permit
       requirements. Always check the <a target="_blank" rel="noopener" href={LINKS.inland}>current freshwater</a> and{' '}
