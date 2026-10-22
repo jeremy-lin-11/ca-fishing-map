@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { CircleMarker, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Fragment, useEffect, useMemo } from 'react';
+import { CircleMarker, MapContainer, Pane, Polyline, Rectangle, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { BASEMAPS, CONFIG, type OverlayId } from '../config';
 import { AGENCY_COLORS } from '../regs';
@@ -59,10 +59,16 @@ interface Props {
   onClick: (p: LatLng, zoom: number) => void;
   onView: (b: BBox, zoom: number) => void;
   initialView?: { lat: number; lng: number; zoom: number }; // from a shared link
+  savedAreas: { id: string; name: string; bbox: BBox }[];
+  savingBox: BBox | null; // the area being downloaded right now
 }
 
-export default function MapView({ basemap, visible, mapLand, marker, flyTarget, onClick, onView, initialView }: Props) {
+const rect = (b: BBox): L.LatLngBoundsExpression => [[b.south, b.west], [b.north, b.east]];
+
+export default function MapView({ basemap, visible, mapLand, marker, flyTarget, onClick, onView, initialView, savedAreas, savingBox }: Props) {
   const { layers, regs, depth } = CONFIG;
+  // SVG, not canvas, for area outlines: a canvas pane covers the whole map and would swallow hover on layers below.
+  const areaSvg = useMemo(() => L.svg({ pane: 'areas', padding: 0.5 }), []);
   // Unchecked land types are filtered on the server, so they're never downloaded.
   const landWhere = ownershipWhere(ALL_LAND.filter(k => mapLand.includes(k)));
   const coarseWhere = landWhere === '1=1' ? layers.ownership.coarseWhere : `(${layers.ownership.coarseWhere}) AND (${landWhere})`;
@@ -103,6 +109,17 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
       {visible.rca && <EsriFeatureLayer pane={DATA} url={depth.rca} minZoom={7} style={rcaStyle} tooltip={rcaTooltip} />}
 
       <Polyline positions={STATE_LINE} interactive={false} pathOptions={{ color: '#57606a', weight: 1.5, opacity: 0.8 }} />
+      {/* Saved offline areas (where checks work with no signal), and the one downloading now. Clicks still reach the
+          map, so tapping inside an area runs a fishing check. */}
+      <Pane name="areas" style={{ zIndex: 450 }}>
+        {savedAreas.map(a => <Fragment key={a.id}>
+          <Rectangle bounds={rect(a.bbox)} interactive={false} pathOptions={{ renderer: areaSvg, stroke: false, fillColor: '#6e40c9', fillOpacity: 0.05 }} />
+          <Rectangle bounds={rect(a.bbox)} pathOptions={{ renderer: areaSvg, color: '#6e40c9', weight: 2, dashArray: '6 5', fill: false }}>
+            <Tooltip sticky>Saved offline: {a.name}</Tooltip>
+          </Rectangle>
+        </Fragment>)}
+        {savingBox && <Rectangle bounds={rect(savingBox)} interactive={false} pathOptions={{ renderer: areaSvg, color: '#bf8700', weight: 2, dashArray: '2 4', fillColor: '#bf8700', fillOpacity: 0.08 }} />}
+      </Pane>
 
       {/* markerPane: above the clipped data pane, so overlays don't cover or tint it */}
       {marker && <CircleMarker pane="markerPane" center={[marker.lat, marker.lng]} radius={7} pathOptions={{ color: '#fff', weight: 2, fillColor: '#1f6feb', fillOpacity: 1 }} />}

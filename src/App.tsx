@@ -40,7 +40,7 @@ export default function App() {
   // --- offline ---
   const [online, setOnline] = useState(navigator.onLine);
   const [areas, setAreas] = useState<SavedArea[]>([]);
-  const [saving, setSaving] = useState<{ phase: string; done: number; total: number } | null>(null);
+  const [saving, setSaving] = useState<{ phase: string; done: number; total: number; bbox: BBox } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [offlineFrom, setOfflineFrom] = useState<SavedArea | null>(null); // the saved area a fishing check was answered from
   const refreshAreas = useCallback(() => { if ('indexedDB' in window) listAreas().then(setAreas).catch(() => setAreas([])); }, []);
@@ -88,10 +88,10 @@ export default function App() {
     if (tooBig) { setSaveError(tooBig); return; }
     setSaveError(null);
     try {
-      setSaving({ phase: 'Downloading land, regulations and lakes', done: 0, total: 0 });
+      setSaving({ phase: 'Downloading land, regulations and lakes', done: 0, total: 0, bbox });
       const offline = await fetchOffline(bbox);
       const { urls, zMax } = tileUrls(bbox);
-      setSaving({ phase: `Downloading basemap tiles (zoom 8–${zMax})`, done: 0, total: urls.length });
+      setSaving({ phase: `Downloading basemap tiles (zoom 8–${zMax})`, done: 0, total: urls.length, bbox });
       const tileBytes = await cacheTiles(urls, (done, total) => setSaving(s => s && { ...s, done, total }));
       await navigator.storage?.persist?.(); // ask the browser not to evict saved areas under storage pressure
       await putArea({ id: crypto.randomUUID(), name: name.trim() || 'Saved area', bbox, savedAt: new Date().toISOString(), offline, tiles: urls, tileBytes });
@@ -166,12 +166,11 @@ export default function App() {
       <Sidebar sheet={sheet} onSheet={setSheet}
         water={water} onWater={setWater} onFly={setFlyTarget} loading={loading} result={result} notice={notice}
         online={online} offlineFrom={offlineFrom} near={mapView ?? undefined} onShareLink={shareLink} reportContext={reportContext}
-        onCheckCenter={() => { const v = view.current; if (v) onMapClick({ lat: (v.bbox.south + v.bbox.north) / 2, lng: (v.bbox.west + v.bbox.east) / 2 }, v.zoom); }}
         offline={{ online, areas, saving, error: saveError, onSave: onSaveArea, onShow: onShowArea, onDelete: onDeleteArea }} />
       <div id="mapwrap">
       <ErrorBoundary name="map">
       <MapView basemap={basemap} visible={visible} mapLand={mapLand} marker={point} flyTarget={flyTarget} onClick={onMapClick}
-        initialView={shared.map} onView={onView} />
+        initialView={shared.map} onView={onView} savedAreas={areas} savingBox={saving?.bbox ?? null} />
       </ErrorBoundary>
       <MapLayers basemap={basemap} onBasemap={b => { setBasemap(b); track('basemap_selected', { basemap: b }); }}
         visible={visible} onToggle={id => { track('map_overlay_toggled', { overlay: id, enabled: !visible[id] }); setVisible(v => ({ ...v, [id]: !v[id] })); }}

@@ -62,7 +62,6 @@ interface Props {
   onFly: (p: LatLng & { zoom?: number }) => void;
   onShareLink: () => string; // current view's link; also puts it in the address bar
   reportContext: () => ReportContext;
-  onCheckCenter: () => void; // a fishing check without a pointer (keyboard, screen readers)
   near?: LatLng;
   loading: boolean;
   result: Analysis | null;
@@ -81,7 +80,7 @@ function CopyLink({ link }: { link: () => string }) {
   return <button type="button" className="copylink" onClick={copy} title="Copy a link to this view">{copied ? 'Copied!' : 'Copy link'}</button>;
 }
 
-export default function Sidebar({ onShareLink, reportContext, onCheckCenter, notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
+export default function Sidebar({ onShareLink, reportContext, notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
   const panel = useRef<HTMLElement>(null);
   const [reporting, setReporting] = useState(false);
   const report = () => { track('report_opened'); setReporting(true); };
@@ -116,7 +115,6 @@ export default function Sidebar({ onShareLink, reportContext, onCheckCenter, not
           : result ? <ErrorBoundary name="fishing check" key={`${result.point.lat},${result.point.lng}`}><ResultPanel r={result} />
             <p className="hint">Something wrong with this answer? <button type="button" className="linkbtn" onClick={report}>Report it</button></p></ErrorBoundary>
           : <p className="hint">Tap or click anywhere on the map to see land status, whether fishing is legal there, and special regulations.</p>}
-        {!loading && <p className="hint"><button type="button" className="linkbtn" onClick={onCheckCenter}>Check the center of the map</button></p>}
       </section>
       <OfflineAreas {...offline} />
       {reporting && <ReportProblem context={reportContext} onClose={() => setReporting(false)} />}
