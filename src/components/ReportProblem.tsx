@@ -1,20 +1,21 @@
 // "Report a problem": a short form that sends the reporter's notes plus what they were looking at (lib/report.ts).
 // Location is sent only if "Include this map location" stays checked; the exact fields are shown before sending.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CONFIG } from '../config';
 import { buildReport, issueUrl, REPORT_CATEGORIES, reportText, type ReportCategory, type ReportContext } from '../lib/report';
 import { sendReport } from '../posthog';
 
-interface Props { context: () => ReportContext; category?: ReportCategory; onClose: () => void }
+interface Props { context: () => ReportContext; onClose: () => void }
 
-export default function ReportProblem({ context, category: initial = 'other', onClose }: Props) {
+export default function ReportProblem({ context, onClose }: Props) {
   const [ctx] = useState(context); // what the reporter is looking at when the form opens
-  const [category, setCategory] = useState<ReportCategory>(initial);
+  const [category, setCategory] = useState<ReportCategory>('other');
   const [notes, setNotes] = useState('');
   const [email, setEmail] = useState('');
   const [includeLocation, setIncludeLocation] = useState(true);
   const [state, setState] = useState<'editing' | 'sending' | 'sent' | 'failed'>('editing');
   const [copied, setCopied] = useState(false);
+  const downOnBackdrop = useRef(false);
   const report = buildReport({ category, notes, email, includeLocation }, ctx);
 
   useEffect(() => {
@@ -32,7 +33,8 @@ export default function ReportProblem({ context, category: initial = 'other', on
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="report-title" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="report-title" onMouseDown={e => { downOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={e => { if (downOnBackdrop.current && e.target === e.currentTarget) onClose(); }}>
       <div className="modal report">
         <h2 id="report-title">Report a problem</h2>
         {state === 'sent' ? <>

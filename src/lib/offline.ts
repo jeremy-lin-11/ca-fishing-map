@@ -6,11 +6,12 @@
 // the same interpret(), so offline answers can't drift from online ones.
 import { CONFIG } from '../config';
 import { arcFeatures, type Attrs } from './arcgis';
-import { BAY_POND_M, type Raw } from './analyze';
+import { BAY_POND_M, clickRadius, type Raw } from './analyze';
 import { californiaQueryParams } from './california';
 import { bboxSpanKm, nearestBetween, pointInPolygon, projector, type BBox, type Coord, type Line } from './geo';
 import { fetchRegRows, KINDS, resolveHits, type Hit } from './regdata';
 import { osmLakesIn, type OsmLake } from './osmLakes';
+import { CA_RINGS } from '../data/california';
 import type { LatLng } from '../types';
 
 // 'area' = tributary/drainage polygons ("X Lake and tributaries"), which apply to any water inside them.
@@ -30,6 +31,7 @@ export interface OfflineData {
   bay?: Line[][]; // San Francisco Bay District polygons (absent in older saves)
   coastalBays?: { name: string; rings: Line[] }[]; // other coastal bays and harbors (absent in older saves)
   osmLakes?: OsmLake[]; // OpenStreetMap lake outlines (absent in older saves)
+  mpas?: { rings: Line[]; attrs: Attrs }[]; // Marine Protected Areas (absent in older saves)
 }
 
 export interface SavedArea {
@@ -75,7 +77,7 @@ async function fetchRegs(b: BBox): Promise<{ features: RegFeature[]; rows: Attrs
 // area would give wrong answers offline.
 export async function fetchOffline(b: BBox): Promise<OfflineData> {
   const L = CONFIG.layers;
-  const [land, regs, lakes, bay, coastalBays, osmLakes] = await Promise.all([
+  const [land, regs, lakes, bay, coastalBays, osmLakes, mpas] = await Promise.all([
     arcFeatures(L.ownership.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0002', geometryPrecision: '5',
       outFields: 'Own_Level,Own_Group,Own_Agency' }, 10),
     fetchRegs(b),
@@ -83,7 +85,9 @@ export async function fetchOffline(b: BBox): Promise<OfflineData> {
       geometryPrecision: '5', outFields: 'NAME,FTYPE,FCODE_DESC' }, 10),
     arcFeatures(L.sfBay.url, { ...envelopeFor(b), where: L.sfBay.where, maxAllowableOffset: '0.0002', geometryPrecision: '5', outFields: 'feat_desc' }),
     arcFeatures(L.coastalBays.url, { ...envelopeFor(b), where: L.coastalBays.where, maxAllowableOffset: '0.0001', geometryPrecision: '5', outFields: 'Estuary_Name' }),
-    osmLakesIn(b)
+    osmLakesIn(b),
+    arcFeatures(L.mpa.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0001', geometryPrecision: '5',
+      outFields: 'name,fullname,type,regulation_text,regulations_url' })
   ]);
   return {
     bbox: b, regFeatures: regs.features, regRows: regs.rows,
@@ -91,9 +95,13 @@ export async function fetchOffline(b: BBox): Promise<OfflineData> {
     lakes: lakes.map(f => ({ rings: paths(f.geometry), attrs: f.attributes })),
     bay: bay.map(f => paths(f.geometry)),
     coastalBays: coastalBays.map(f => ({ name: String(f.attributes.Estuary_Name), rings: paths(f.geometry) })),
-    osmLakes
+    osmLakes,
+    mpas: mpas.map(f => ({ rings: paths(f.geometry), attrs: f.attributes }))
   };
 }
+
+// A box entirely on land (all corners inside the state's land outline): no ocean, so no MPAs.
+const inland = (b: BBox) => ([[b.west, b.south], [b.east, b.south], [b.east, b.north], [b.west, b.north]] as Coord[]).every(c => pointInPolygon(c, CA_RINGS));
 
 export const inBox = (p: LatLng, b: BBox) => p.lat >= b.south && p.lat <= b.north && p.lng >= b.west && p.lng <= b.east;
 export const areaFor = (areas: SavedArea[], p: LatLng) => areas.find(a => inBox(p, a.bbox)) ?? null;
@@ -103,22 +111,27 @@ export const areaFor = (areas: SavedArea[], p: LatLng) => areas.find(a => inBox(
 export function offlineRaw(o: OfflineData, point: LatLng, zoom: number): Raw {
   const at: Coord = [point.lng, point.lat];
   const proj = projector(point.lat);
-  const tol = 14 * 156543 * Math.cos(point.lat * Math.PI / 180) / Math.pow(2, zoom); // same click radius as online
+  const tol = clickRadius(point, zoom); // same click radius as online
   const hits: Hit[] = [];
   for (const f of o.regFeatures) {
     const applies = f.kind === 'stream' ? nearestBetween([[at]], f.lines, proj, tol) !== null : pointInPolygon(at, f.lines);
     if (applies) hits.push({ kind: KINDS[KIND_IDX[f.kind]], desc: f.desc, code: f.code, mapCode: f.mapCode, unverified: f.unverified });
   }
+  const own = o.land.filter(p => pointInPolygon(at, p.rings)).map(p => p.attrs);
   const lake = o.lakes.find(w => pointInPolygon(at, 'rings' in w ? w.rings : w.lines));
   return {
-    own: o.land.filter(p => pointInPolygon(at, p.rings)).map(p => p.attrs),
+    own,
     waterBody: !lake ? [] : 'attrs' in lake ? [lake.attrs] : [{ NAME: lake.name, FTYPE: 'Lake/Pond' }],
-    fed: [], parks: [], mpa: [],
+    fed: [], parks: [],
+    // Older saves have no MPAs: inland ones can't have any; near the coast, null reports the check as missing.
+    mpa: o.mpas ? o.mpas.filter(m => pointInPolygon(at, m.rings)).map(m => m.attrs) : inland(o.bbox) ? [] : null,
     bay: (o.bay ?? []).filter(r => pointInPolygon(at, r)).map(() => ({})),
     osmLake: (o.osmLakes ?? []).filter(l => pointInPolygon(at, l.rings)).slice(0, 1).map(l => ({ NAME: l.name })),
     coastalBay: (o.coastalBays ?? []).filter(c => pointInPolygon(at, c.rings)).map(c => ({ Estuary_Name: c.name })),
     nearBay: (o.bay ?? []).filter(r => nearestBetween([[at]], r, proj, BAY_POND_M) !== null || pointInPolygon(at, r)).map(() => ({})),
-    geo: { address: { state: 'California' } }, // the area is inside California; there's no geocoder offline
+    // No county service offline: off the state's land outline with no land parcel is open water (as online, where
+    // the county lookup comes back empty there).
+    geo: own.length || pointInPolygon(at, CA_RINGS) ? { address: { state: 'California' } } : null,
     dem: null, rca: [], contours: [],
     regs: { hits, rowsByCode: new Map(o.regRows.map(r => [String(r.code), r])), failed: [] }
   };

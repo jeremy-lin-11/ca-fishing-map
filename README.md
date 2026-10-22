@@ -325,8 +325,5 @@ commit all three and push.
 command `npm run build`, output `dist`, environment variable `NODE_VERSION=22`, and no `BASE_PATH`. Cloudflare
 honours `public/_headers` (service worker never cached, hashed assets immutable).
 
-Set `CONFIG.feedbackUrl` (src/config.ts) to show a "Report a problem" link in About, e.g.
-`https://github.com/jeremy-lin-11/ca-fishing-map/issues`.
-
 Data credits and licenses are in the app's About panel. OpenStreetMap data is © OpenStreetMap contributors under the
 ODbL (see `public/osm/LICENSE.md`).

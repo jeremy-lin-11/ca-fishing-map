@@ -56,15 +56,21 @@ export default function App() {
     if (!inCalifornia(p)) { setNotice('That point is outside California. This map only covers California and its coastal waters.'); return; }
     const id = ++latest.current; // ignore responses from older clicks
     setNotice(null);
+    const area = areaFor(areasRef.current, p);
+    const fromArea = (a: SavedArea) => {
+      setPoint(p); setOfflineFrom(a); setSheet(s => (s === 'min' ? 'half' : s)); setRaw(offlineRaw(a.offline, p, zoom)); setLoading(false);
+    };
     if (!navigator.onLine) { // answer from a saved area
-      const area = areaFor(areasRef.current, p);
-      if (!area) { setNotice("You're offline, and this point isn't in a saved area. Save areas for offline use (below) while online."); return; }
-      setPoint(p); setOfflineFrom(area); setSheet(s => (s === 'min' ? 'half' : s)); setRaw(offlineRaw(area.offline, p, zoom)); setLoading(false);
+      if (area) fromArea(area);
+      else { setNotice("You're offline, and this point isn't in a saved area. Save areas for offline use (below) while online."); setLoading(false); }
       return;
     }
-    setPoint(p); setLoading(true); setOfflineFrom(null); setSheet(s => (s === 'min' ? 'half' : s));
+    // Clear the previous answer so nothing (analytics, a problem report) reads it as this point's while loading.
+    setPoint(p); setRaw(null); setLoading(true); setOfflineFrom(null); setSheet(s => (s === 'min' ? 'half' : s));
     const data = await fetchPoint(p, zoom);
     if (id !== latest.current) return;
+    // A signal but no data (common in the backcountry): land and regulations both failed. Use a saved area if there is one.
+    if (area && !data.own && data.regs.failed.length) { fromArea(area); return; }
     setRaw(data); setLoading(false);
   }, []);
 
@@ -160,6 +166,7 @@ export default function App() {
       <Sidebar sheet={sheet} onSheet={setSheet}
         water={water} onWater={setWater} onFly={setFlyTarget} loading={loading} result={result} notice={notice}
         online={online} offlineFrom={offlineFrom} near={mapView ?? undefined} onShareLink={shareLink} reportContext={reportContext}
+        onCheckCenter={() => { const v = view.current; if (v) onMapClick({ lat: (v.bbox.south + v.bbox.north) / 2, lng: (v.bbox.west + v.bbox.east) / 2 }, v.zoom); }}
         offline={{ online, areas, saving, error: saveError, onSave: onSaveArea, onShow: onShowArea, onDelete: onDeleteArea }} />
       <div id="mapwrap">
       <ErrorBoundary name="map">

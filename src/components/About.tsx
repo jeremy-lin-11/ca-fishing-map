@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { CONFIG } from '../config';
 import { LINKS } from '../regs';
 import { track } from '../posthog';
 
@@ -69,10 +68,9 @@ export default function About() {
       <p className="hint">The trail, lake and stream data is extracted from OpenStreetMap and is available under the{' '}
         <a target="_blank" rel="noopener" href="https://opendatacommons.org/licenses/odbl/">Open Database License</a>.
         This app doesn't use cookies. It counts anonymous usage (e.g. how many fishing checks are run, and with which
-        water type) with PostHog, but never sends where you tap, your location, place names or searches. A problem
-        report you choose to send includes what you write and, if you leave that box checked, the map location. Saved
-        offline areas stay on your device.</p>
-      {CONFIG.feedbackUrl && <p><a target="_blank" rel="noopener" href={CONFIG.feedbackUrl}>Report a problem or a wrong regulation</a></p>}
+        water type) with PostHog, which keeps a random ID in your browser's storage, but never sends where you tap,
+        your location, place names or searches. A problem report you choose to send includes what you write and, if you
+        leave that box checked, the map location. Saved offline areas stay on your device.</p>
     </details>
   );
 }

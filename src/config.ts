@@ -56,8 +56,6 @@ export const CONFIG = {
   places: `${import.meta.env.BASE_URL}places.json`,
   // OpenStreetMap lake outlines (`npm run build:lakes`): lake detection where Esri/NHD water bodies has none.
   osmLakes: `${import.meta.env.BASE_URL}lakes`,
-  // Optional "Report a problem" link shown in About (e.g. a public issues page or form). Empty = hidden.
-  feedbackUrl: '',
   // Where a problem report goes when sending fails (e.g. an ad blocker): a pre-filled GitHub issue (public).
   issuesUrl: 'https://github.com/jeremy-lin-11/ca-fishing-map/issues/new',
 

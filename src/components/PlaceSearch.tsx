@@ -16,7 +16,8 @@ export default function PlaceSearch({ onFly, near }: { onFly: (p: LatLng & { zoo
   const box = useRef<HTMLFormElement>(null);
 
   // Load the index on first focus, not at startup.
-  const ensure = () => { if (!places && !failed) loadPlaces().then(setPlaces).catch(() => setFailed(true)); };
+  // Retried on the next focus after a failure (e.g. first opened offline).
+  const ensure = () => { if (!places) { setFailed(false); loadPlaces().then(setPlaces).catch(() => setFailed(true)); } };
   useEffect(() => { setHits(places ? searchPlaces(places, q, near) : []); setActive(0); }, [places, q, near]);
   useEffect(() => {
     const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };

@@ -158,6 +158,6 @@ export default function ResultPanel({ r }: { r: Analysis }) {
       <p className="hint"><Ext href={LINKS.license}>Buy a license</Ext></p>
     </Fold>
     <p className="hint">{r.point.lat.toFixed(5)}, {r.point.lng.toFixed(5)}</p>
-    {r.errors.length > 0 && <p className="err">Could not load: {r.errors.join(', ')}. Check the URLs in config.ts.</p>}
+    {r.errors.length > 0 && <p className="err">Couldn't load: {r.errors.join(', ')}. Parts of this answer may be missing; try again in a moment.</p>}
   </>;
 }

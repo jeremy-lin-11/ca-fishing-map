@@ -87,7 +87,8 @@ export function EsriFeatureLayer({ url, pane, where, minZoom, maxZoom, style, to
       // Features without a tooltip are display-only: not hit-tested on hover/click (thousands of land parcels
       // would make every mouse move scan them), and clicks fall through to the map for the fishing check.
       style: (f?: GeoJSON.Feature) => ({ ...style(f?.properties || {}), interactive: !!tooltip }),
-      onEachFeature: tooltip ? (f: GeoJSON.Feature, l: L.Layer) => l.bindTooltip(tooltip(f.properties || {}), { sticky: true }) : undefined
+      // Tooltip text comes from remote services: give Leaflet a text node, never an HTML string (it would use innerHTML).
+      onEachFeature: tooltip ? (f: GeoJSON.Feature, l: L.Layer) => l.bindTooltip(document.createTextNode(tooltip(f.properties || {})) as unknown as HTMLElement, { sticky: true }) : undefined
     });
     layer.addTo(map);
     return () => { map.removeLayer(layer); };

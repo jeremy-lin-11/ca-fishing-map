@@ -5,19 +5,16 @@ export function agencyKey(text: string): AgencyKey | null {
   const t = text.toLowerCase();
   if (/blm|bureau of land/.test(t)) return 'BLM';
   if (/forest service|usfs|\bfs\b|national forest/.test(t)) return 'USFS';
-  if (/park service|\bnps\b|national park|national monument|recreation area/.test(t)) return 'NPS';
+  if (/state (park|beach|recreation area|historic park|natural reserve|vehicular recreation area)/.test(t)) return 'STATE';
+  if (/park service|\bnps\b|national park|national monument|national recreation area/.test(t)) return 'NPS';
   if (/fish (and|&) wildlife|\bfws\b|refuge/.test(t)) return 'FWS';
   if (/reclamation|usbr|\bbor\b/.test(t)) return 'BOR';
-  if (/defense|army|navy|air force|marine corps|\bdod\b|usaf|usn/.test(t)) return 'DOD';
+  if (/defense|army|navy|air force|marine corps|\bdod\b|\busaf\b|\busn\b/.test(t)) return 'DOD';
   if (/tribal|indian|\bbia\b/.test(t)) return 'TRIBAL';
   if (/state|cdfw|dpr|california|\bcdpr\b/.test(t)) return 'STATE';
   if (/local|county|city|regional|district|municipal/.test(t)) return 'LOCAL';
   return null;
 }
-
-// Agency for map styling (works on either the federal or the parks layer).
-export const styleAgency = (a: Attrs): AgencyKey =>
-  agencyKey(pick(a, ['Agency', 'AGBUR', 'Mang_Name', 'MANAGER', 'FEATTYPE', 'TYPE', 'Own_Name'])) || 'OTHER_FED';
 
 export interface LandUnit { name: string; key: AgencyKey; type: string }
 

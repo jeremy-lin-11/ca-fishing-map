@@ -47,7 +47,7 @@ export default function LocateControl() {
       setBusy(false);
       const f = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy };
       setFix(f);
-      track('locate_used', { result: 'ok', in_california: inCalifornia(f) });
+      track('locate_used', { result: 'ok' });
       if (!inCalifornia(f)) setMsg('You appear to be outside California; this map only covers California.');
       map.setView([f.lat, f.lng], Math.max(map.getZoom(), 13));
     }, e => {
@@ -68,9 +68,9 @@ export default function LocateControl() {
       {msg && <div className="locate-msg" role="status">{msg}</div>}
     </>, box)}
     {fix && <>
-      <Circle center={[fix.lat, fix.lng]} radius={fix.accuracy} interactive={false}
+      <Circle pane="markerPane" center={[fix.lat, fix.lng]} radius={fix.accuracy} interactive={false}
         pathOptions={{ color: '#0a84ff', weight: 1, fillColor: '#0a84ff', fillOpacity: 0.12 }} />
-      <CircleMarker center={[fix.lat, fix.lng]} radius={6} pathOptions={{ color: '#fff', weight: 3, fillColor: '#0a84ff', fillOpacity: 1 }}>
+      <CircleMarker pane="markerPane" center={[fix.lat, fix.lng]} radius={6} pathOptions={{ color: '#fff', weight: 3, fillColor: '#0a84ff', fillOpacity: 1 }}>
         <Tooltip>You are here (±{Math.round(fix.accuracy)} m)</Tooltip>
       </CircleMarker>
     </>}

@@ -38,4 +38,18 @@ describe('problem reports', () => {
     const wide = buildReport({ category: 'app', notes: '湖'.repeat(4000), email: '', includeLocation: false }, ctx);
     expect(issueUrl('https://github.com/o/r/issues/new', wide).length).toBeLessThanOrEqual(7500);
   });
+  it('without location consent, the answer is sent as categories: no names or section numbers', () => {
+    const result = { point: ctx.point!, water: 'lake', county: 'Mono County', verdict: { status: 'warn', text: 'Fishing allowed, but unit-specific rules apply' },
+      lands: [{ name: 'Inyo National Forest', key: 'USFS', type: '' }], landBadge: { status: 'ok', text: 'Public' },
+      notes: [{ strong: 'Twin Lakes', text: ': …' }], depth: [], errors: [],
+      regs: { special: [{ code: '7.50(b)(158)' }], general: [] },
+      trout: { open: true, keep: true, daily: 5, possession: 10, source: '§7.50(b)(158)', note: 'Open Jul 6', caveats: [] },
+      pressure: { level: 'low', score: 0, reasons: [{ text: 'Inside the Ansel Adams Wilderness', effect: -1 }], missing: [] } } as any;
+    const r = buildReport({ category: 'regs', notes: 'x', email: '', includeLocation: false }, { ...ctx, result });
+    expect(r).toMatchObject({ answer_water: 'lake', answer_verdict: 'warn', answer_land: 'USFS', answer_trout: 'open, 5/day', answer_pressure: 'low' });
+    expect(JSON.stringify(r)).not.toMatch(/Twin|Inyo|Ansel|7\.50|Mono/);
+    const shared = buildReport({ category: 'regs', notes: 'x', email: '', includeLocation: true }, { ...ctx, result });
+    expect(shared.answer_land).toBe('Inyo National Forest (USFS)');
+    expect(shared.answer_special_regs).toBe('7.50(b)(158)');
+  });
 });

@@ -39,7 +39,7 @@ export function ancestors(code: string): string[] {
   while ((m = c.match(/^(.*)\([^()]*\)$/))) { c = m[1]; out.push(c); }
   return out;
 }
-const isUnder = (code: string, root: string) => code === root || code.startsWith(root + '(');
+export const isUnder = (code: string, root: string) => code === root || code.startsWith(root + '(');
 
 // Natural sort so (2) < (10) and (A) < (B).
 export function codeCmp(a: string, b: string): number {
@@ -65,7 +65,11 @@ export async function lookupRegs(cfg: RegsConfig, point: LatLng, tolMeters: numb
   }));
   const all = perKind.flat();
   const deduped = all.filter((h, i) => all.findIndex(x => x.kind === h.kind && x.code === h.code && x.desc === h.desc) === i);
-  const hits = await resolveHits(cfg, deduped).catch(() => deduped);
+  // If the section-number check can't run, map numbers may be wrong (~6%): flag them all rather than trust them.
+  const hits = await resolveHits(cfg, deduped).catch(() => {
+    failed.push('regulation section check');
+    return deduped.map(h => (h.kind.special ? { ...h, unverified: true } : h));
+  });
 
   let rowsByCode = new Map<string, Attrs>();
   if (hits.length) {

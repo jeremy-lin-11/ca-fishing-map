@@ -31,20 +31,27 @@ const stripUrl = (v: unknown) => (typeof v === 'string' && /^https?:\/\//.test(v
 // The page URL PostHog shows (Activity's URL / Screen column): scrubbed, with #shared-link marking visits that
 // started from a shared link (the marker, not the link's coordinates).
 export const pageUrl = (url: string, entry: string) => `${stripUrl(url)}${entry === 'shared_link' ? '#shared-link' : ''}`;
-function scrub(props?: Record<string, unknown>) {
-  if (props) for (const k of Object.keys(props)) props[k] = stripUrl(props[k]);
+// Every string anywhere in the event, nested ones too (web-vitals and exception events nest URLs).
+function scrub(v: unknown, depth = 0): unknown {
+  if (typeof v === 'string') return stripUrl(v);
+  if (!v || typeof v !== 'object' || depth > 6) return v;
+  if (Array.isArray(v)) { v.forEach((x, i) => { v[i] = scrub(x, depth + 1); }); return v; }
+  const o = v as Record<string, unknown>;
+  for (const k of Object.keys(o)) o[k] = scrub(o[k], depth + 1);
+  return o;
 }
 const beforeSend = (event: CaptureResult | null): CaptureResult | null => {
   if (!event) return event;
   scrub(event.properties);
+  scrub(event.$set);
+  scrub(event.$set_once);
   if (event.properties) {
+    event.properties.$geoip_disable = true; // no city / coordinates looked up from the visitor's IP
     event.properties.entry = ENTRY;
     event.properties.device = DEVICE;
     event.properties.installed_app = INSTALLED;
     if (typeof event.properties.$current_url === 'string') event.properties.$current_url = pageUrl(event.properties.$current_url, ENTRY);
   }
-  scrub(event.$set as Record<string, unknown> | undefined);
-  scrub(event.$set_once as Record<string, unknown> | undefined);
   return event;
 };
 
@@ -52,6 +59,14 @@ const beforeSend = (event: CaptureResult | null): CaptureResult | null => {
 // moments are queued until then.
 let client: PostHog | null = null;
 const queue: [string, Record<string, unknown> | undefined][] = [];
+// Earlier versions let PostHog keep its id in a cookie (ph_<key>_posthog), which could hold a shared link's URL.
+// Remove it; the id now lives in localStorage.
+for (const c of document.cookie.split(';')) {
+  const name = c.split('=')[0].trim();
+  if (name.startsWith('ph_')) for (const domain of ['', `; domain=${location.hostname}`, `; domain=.${location.hostname}`])
+    document.cookie = `${name}=; Max-Age=0; path=/${domain}`;
+}
+
 if (isPostHogConfigured) {
   const load = () => import('posthog-js').then(({ default: posthog }) => {
     posthog.init(posthogKey!, {
@@ -63,6 +78,9 @@ if (isPostHogConfigured) {
       disable_session_recording: true,
       disable_surveys: true,
       person_profiles: 'identified_only', // anonymous events only; no person records
+      persistence: 'localStorage',        // the anonymous id lives in localStorage: no cookie
+      disable_capture_url_hashes: true,   // PostHog's own stored URLs (e.g. the session's entry URL) without #map=…&pt=…
+      capture_performance: false,         // web-vitals events nest full page URLs
       before_send: beforeSend,
       capture_exceptions: {
         capture_unhandled_errors: true,
@@ -97,8 +115,9 @@ export async function sendReport(report: Record<string, unknown>): Promise<boole
     const res = await fetch(`${posthogHost.replace(/\/$/, '')}/capture/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_key: posthogKey, event: 'bug_report', distinct_id: client?.get_distinct_id() ?? 'problem-report',
-        properties: { ...report, entry: ENTRY, device: DEVICE, installed_app: INSTALLED, env: import.meta.env.MODE, $current_url: shared ? window.location.href : pageUrl(window.location.href, ENTRY) }
+        // A one-off id, so a report (which may hold an email) isn't tied to this browser's usage events.
+        api_key: posthogKey, event: 'bug_report', distinct_id: `report-${crypto.randomUUID()}`,
+        properties: { ...report, $process_person_profile: false, $geoip_disable: true, entry: ENTRY, device: DEVICE, installed_app: INSTALLED, env: import.meta.env.MODE, $current_url: shared ? window.location.href : pageUrl(window.location.href, ENTRY) }
       })
     });
     return res.ok;

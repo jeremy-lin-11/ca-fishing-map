@@ -50,16 +50,23 @@ export function buildReport(input: ReportInput, ctx: ReportContext): Report {
     user_agent: ctx.userAgent,
     screen: ctx.screen
   };
+  // The answer shown. Names (lake, wilderness, land unit, MPA), section numbers and pressure reasons each pinpoint
+  // a water, so without location consent only categories are sent.
   if (a) Object.assign(report, {
     answer_water: a.water,
+    answer_verdict: a.verdict.status,
+    answer_land: [...new Set(a.lands.map(l => l.key))].join(', ') || a.landBadge.status,
+    answer_trout: a.trout ? `${a.trout.open === true ? 'open' : a.trout.open === false ? 'closed' : 'unclear'}${a.trout.daily !== null ? `, ${a.trout.daily}/day` : ''}` : null,
+    answer_pressure: a.pressure?.level ?? null,
+    answer_load_errors: a.errors.join(', ') || null
+  }, input.includeLocation ? {
     answer_verdict: `${a.verdict.status}: ${a.verdict.text}`,
     answer_land: a.lands.map(l => `${l.name} (${l.key})`).join('; ') || a.landBadge.text,
     answer_trout: a.trout ? `${a.trout.open === true ? 'open' : a.trout.open === false ? 'closed' : 'unclear'}; ${a.trout.note} [${a.trout.source}]` : null,
     answer_special_regs: a.regs?.special.map(g => g.code).join(', ') || null,
     answer_notes: a.notes.map(n => n.strong).filter(Boolean).join('; ') || null,
-    answer_pressure: a.pressure ? `${a.pressure.level} (${a.pressure.score}): ${a.pressure.reasons.map(x => x.text).join('; ')}` : null,
-    answer_load_errors: a.errors.join(', ') || null
-  });
+    answer_pressure: a.pressure ? `${a.pressure.level} (${a.pressure.score}): ${a.pressure.reasons.map(x => x.text).join('; ')}` : null
+  } : {});
   // Where: only with consent. County alone is coarse, but it's still location.
   if (input.includeLocation) Object.assign(report, {
     point_lat: ctx.point ? r5(ctx.point.lat) : null,

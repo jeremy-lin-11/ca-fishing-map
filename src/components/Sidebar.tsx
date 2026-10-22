@@ -12,7 +12,7 @@ import ReportProblem from './ReportProblem';
 import type { ReportContext } from '../lib/report';
 import { track } from '../posthog';
 
-// On narrow screens the sidebar is a bottom sheet over a full-screen map: just the search and tabs, half or most of the screen.
+// On narrow screens the sidebar is a bottom sheet over a full-screen map: just the title and search, half or most of the screen.
 export type Sheet = 'min' | 'half' | 'full';
 const SHEETS: Sheet[] = ['min', 'half', 'full'];
 const SHEET_LABEL: Record<Sheet, string> = { min: 'Show panel', half: 'Expand panel', full: 'Minimize panel' };
@@ -46,7 +46,8 @@ function SheetHandle({ sheet, onSheet, panel }: { sheet: Sheet; onSheet: (s: She
     onSheet(SHEETS.reduce((best, s) => (Math.abs(sheetPx(s) - h) < Math.abs(sheetPx(best) - h) ? s : best)));
   };
   return <button type="button" className="sheet-handle" aria-label={SHEET_LABEL[sheet]} title={SHEET_LABEL[sheet]}
-    onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}><span /></button>;
+    onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+    onClick={e => { if (e.detail === 0) onSheet(SHEETS[(SHEETS.indexOf(sheet) + 1) % SHEETS.length]); }}><span /></button>;
 }
 
 interface Props {
@@ -61,6 +62,7 @@ interface Props {
   onFly: (p: LatLng & { zoom?: number }) => void;
   onShareLink: () => string; // current view's link; also puts it in the address bar
   reportContext: () => ReportContext;
+  onCheckCenter: () => void; // a fishing check without a pointer (keyboard, screen readers)
   near?: LatLng;
   loading: boolean;
   result: Analysis | null;
@@ -79,7 +81,7 @@ function CopyLink({ link }: { link: () => string }) {
   return <button type="button" className="copylink" onClick={copy} title="Copy a link to this view">{copied ? 'Copied!' : 'Copy link'}</button>;
 }
 
-export default function Sidebar({ onShareLink, reportContext, notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
+export default function Sidebar({ onShareLink, reportContext, onCheckCenter, notice, online, offlineFrom, near, offline, sheet, onSheet, water, onWater, onFly, loading, result }: Props) {
   const panel = useRef<HTMLElement>(null);
   const [reporting, setReporting] = useState(false);
   const report = () => { track('report_opened'); setReporting(true); };
@@ -97,7 +99,7 @@ export default function Sidebar({ onShareLink, reportContext, notice, online, of
 
       <section>
         <h2>Water type at clicked point</h2>
-        <select value={water} onChange={e => { const waterType = e.target.value as WaterSelection; track('water_type_changed', { water_type: waterType }); onWater(waterType); }}>
+        <select aria-label="Water type at clicked point" value={water} onChange={e => { const waterType = e.target.value as WaterSelection; track('water_type_changed', { water_type: waterType }); onWater(waterType); }}>
           <option value="auto">Auto-detect</option>
           <option value="stream">Inland stream / river</option>
           <option value="lake">Lake / reservoir</option>
@@ -114,6 +116,7 @@ export default function Sidebar({ onShareLink, reportContext, notice, online, of
           : result ? <ErrorBoundary name="fishing check" key={`${result.point.lat},${result.point.lng}`}><ResultPanel r={result} />
             <p className="hint">Something wrong with this answer? <button type="button" className="linkbtn" onClick={report}>Report it</button></p></ErrorBoundary>
           : <p className="hint">Tap or click anywhere on the map to see land status, whether fishing is legal there, and special regulations.</p>}
+        {!loading && <p className="hint"><button type="button" className="linkbtn" onClick={onCheckCenter}>Check the center of the map</button></p>}
       </section>
       <OfflineAreas {...offline} />
       {reporting && <ReportProblem context={reportContext} onClose={() => setReporting(false)} />}

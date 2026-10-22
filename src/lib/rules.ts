@@ -5,7 +5,7 @@ import { isOpenOn, parseSeason, type Season } from './season';
 
 // One season period of a regulation entry ("Last Sat. in Apr. through Jul. 31 | 5 trout"). Plain data (no parsed
 // functions); seasons are parsed on use and cached.
-export interface Period { season: string; daily: number | null; possession: number | null }
+export interface Period { season: string; daily: number | null; possession: number | null; bySpecies?: string }
 
 const seasonCache = new Map<string, Season | null>();
 export const seasonOf = (p: Period): Season | null => {
@@ -26,11 +26,18 @@ export interface RegSummary {
   periods: Period[];
   mapCode?: string;
   unverified?: boolean;
+  byReach?: boolean;   // a whole-river entry whose reaches have different rules: which applies isn't known
 }
 
 // "2 trout. 4 trout in possession." -> { daily: 2, possession: 4 }; "0 trout" -> { daily: 0 }
-export function parseTrout(s: string): { daily: number | null; possession: number | null } {
-  const poss = s.match(/(\d+)\s*(?:hatchery\s+)?trout[^.|\d]*in\s+posses/i); // [^\d]: don't span "2 trout ... 4 trout in possession"
+// "Closed to the take of trout and steelhead" -> 0. Limits split by species ("5 brown trout, 0 rainbow trout") keep the
+// highest as the daily limit and return the text, so the answer can say the limit depends on the species.
+export function parseTrout(s: string): { daily: number | null; possession: number | null; bySpecies?: string } {
+  if (/closed to (?:the )?take of (?:all )?trout/i.test(s)) return { daily: 0, possession: 0 };
+  const species = [...s.matchAll(/(\d+)\s+(?:brown|rainbow|brook|cutthroat|golden|lake|lahontan)\s+trout/gi)];
+  if (species.length) return { daily: Math.max(...species.map(m => +m[1])), possession: null, bySpecies: s.trim() };
+  // "2 trout ... 4 trout in possession", "5 trout. 10 in possession", "4 hatchery trout ... 8 hatchery trout in possession"
+  const poss = s.match(/(\d+)\s*(?:hatchery\s+)?(?:trout[^.|\d]*)?in\s+posses/i); // [^\d]: don't span from the daily number
   const daily = s.replace(poss?.[0] ?? '\u0000', '').match(/(\d+)\s*(?:hatchery\s+)?trout/i);
   return { daily: daily ? +daily[1] : null, possession: poss ? +poss[1] : null };
 }
@@ -76,6 +83,7 @@ const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'n
 function dayRule(sums: RegSummary[], d: Date): { open: boolean | null; daily: number | null; possession: number | null } {
   let open: boolean | null = true, daily: number | null = null, possession: number | null = null, anyLimit = false;
   for (const s of sums) {
+    if (s.byReach) { open = null; continue; } // the reach decides; any reach's closure isn't this point's
     if (s.closedAllYear) return { open: false, daily: 0, possession: 0 };
     const withSeason = s.periods.filter(p => seasonOf(p));
     let o: boolean | null, chosen: Period[];
@@ -96,17 +104,23 @@ function dayRule(sums: RegSummary[], d: Date): { open: boolean | null; daily: nu
   return { open, daily: anyLimit ? daily : null, possession };
 }
 
-export function troutRule(kind: 'lake' | 'stream', sums: RegSummary[], dates: Date[]): TroutRule {
+// `unknown`: the regulations couldn't be fully loaded or checked, so the answer is "unclear", never a default "open".
+export function troutRule(kind: 'lake' | 'stream', sums: RegSummary[], dates: Date[], unknown?: string): TroutRule {
   const special = sums.filter(s => s.scope === 'water' && !s.unverified);
   const districtStreams = kind === 'stream' ? sums.filter(s => s.scope === 'district-streams') : [];
   const caveats = kind === 'stream'
     ? sums.filter(s => s.scope === 'district-anadromous').map(s => `If this stream is anadromous (reachable by salmon/steelhead from the ocean), §${s.code} applies${s.closedAllYear ? ': closed to all fishing all year' : s.periods[0] ? `: ${[s.periods[0].season, s.periods[0].daily !== null ? `${s.periods[0].daily} trout` : ''].filter(Boolean).join(', ')}` : ''}.`)
     : [];
   if (sums.some(s => s.unverified)) caveats.push('A special regulation listed for this water could not be verified against the text; check the booklet.');
+  for (const s of sums) for (const p of s.periods) if (p.bySpecies) caveats.push(`§${s.code}: the limit depends on the trout species ("${p.bySpecies}").`);
+  // With only an unverified special rule, the district or statewide default may not apply either.
+  const reason = unknown ?? (!special.length && sums.some(s => s.scope === 'water' && s.unverified)
+    ? 'Special regulation for this water could not be verified; check the booklet' : undefined);
+  if (reason) return { open: null, keep: null, daily: null, possession: null, source: sums.filter(s => s.scope === 'water').map(s => `§${s.code}`).join(', ') || 'unknown', note: reason, caveats };
 
   // Special regulations replace the district and statewide rules ("except those listed in the Special Regulations").
   const governing = special.length ? special : districtStreams;
-  const source = governing.length ? governing.map(s => `§${s.code}`).join(', ') : kind === 'lake' ? 'statewide §5.85(a)(1)' : 'statewide §5.85(a)(2)';
+  const source = governing.length ? [...new Set(governing.map(s => `§${s.code}`))].join(', ') : kind === 'lake' ? 'statewide §5.85(a)(1)' : 'statewide §5.85(a)(2)';
   const days = dates.length ? dates : [new Date()];
   const perDay = days.map(d => {
     let r = governing.length ? dayRule(governing, d) : { open: kind === 'lake' ? true : isOpenOn(STATEWIDE_STREAM_SEASON, d), daily: 5, possession: 10 };
@@ -128,6 +142,7 @@ export function troutRule(kind: 'lake' | 'stream', sums: RegSummary[], dates: Da
     sums.some(s => s.closedAllYear && governing.includes(s)) ? 'Closed to all fishing all year'
     : closedDays.length === days.length ? `Closed on ${span}`
     : closedDays.length ? `Closed on ${closedDays.length} of ${days.length} days (first: ${fmt(closedDays[0])}); ${daily} trout/day otherwise`
+    : open === null && governing.some(s => s.byReach) ? `Rules differ along this water (${source}): check which section you're on`
     : open === null ? `${daily} trout/day; season text could not be read, check the rule`
     : daily === 0 ? `Open ${span}, catch-and-release only (0 trout)`
     : `Open ${span}: ${daily} trout/day, ${possession} in possession`;

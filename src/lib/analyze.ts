@@ -5,7 +5,7 @@ import type { LatLng, Note, Status, WaterSelection, WaterType } from '../types';
 import { pick, queryPoint, type Attrs } from './arcgis';
 import { FT_PER_M, M_PER_FATHOM, nearestRcaLines, sampleDem } from './depth';
 import { classifyLands, classifyOwnership, type LandUnit } from './land';
-import { buildGroups, lookupRegs, type RegGroup, type RegLookup } from './regdata';
+import { buildGroups, isUnder, lookupRegs, type RegGroup, type RegLookup } from './regdata';
 import { districtScope, summarizeGroup, troutRule, type RegSummary, type TroutRule } from './rules';
 import { estimatePressure, fetchPressure, type Pressure, type PressureRaw } from './pressure';
 import { osmLakeAt } from './osmLakes';
@@ -54,9 +54,13 @@ async function countyAt(p: LatLng) {
   } catch { return null; }
 }
 
+// ~14 screen pixels, so thin stream lines are clickable, but at most 400 m: zoomed out, 14 px is kilometers and would
+// pull in other waters' rules.
+export const clickRadius = (p: LatLng, zoom: number) => Math.min(400, 14 * 156543 * Math.cos(p.lat * Math.PI / 180) / Math.pow(2, zoom));
+
 // zoom is used to size the stream search radius (~14px) so thin lines are clickable at any zoom.
 export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
-  const tol = 14 * 156543 * Math.cos(point.lat * Math.PI / 180) / Math.pow(2, zoom);
+  const tol = clickRadius(point, zoom);
   const { layers: L, depth: D } = CONFIG;
   const salton = D.lakeContours[0];
   const [own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs, pressure] = await Promise.all([
@@ -90,17 +94,36 @@ function landUnits(own: Attrs[] | null, fed: Attrs[], parks: Attrs[]): LandUnit[
 }
 
 // Today's season/trout answer from the regulation groups at the point.
-function troutToday(groups: RegGroup[], kind: 'lake' | 'stream', today: Date): TroutRule {
+// Water-specific trout rules are §7.40 (streams) and §7.50 (lakes) entries. The same map layers also carry other
+// sections (§8.00 low-flow closures, spearfishing, sturgeon…) that say nothing about the trout season, so they
+// mustn't replace the district or statewide rule.
+const WATER_RULE = /^7\.(40|50)\(/;
+// The child section a row belongs to ("7.40(b)(79)(A)(1)" under "7.40(b)(79)" -> "(A)").
+const childOf = (root: string, code: string) => code.slice(root.length).match(/^\([^)]*\)/)?.[0];
+
+function troutToday(groups: RegGroup[], kind: 'lake' | 'stream', today: Date, unknown?: string): TroutRule {
   const sums: RegSummary[] = [];
+  const lowFlow: string[] = [];
+  const water = groups.filter(g => g.kind.special && WATER_RULE.test(g.code));
   for (const g of groups) {
-    if (g.kind.special) sums.push(summarizeGroup(g, g, 'water'));
+    if (g.kind.special) {
+      if (!WATER_RULE.test(g.code)) { if (/^8\.00\(/.test(g.code)) lowFlow.push(g.code); continue; }
+      // A whole-river entry hit together with one of its reaches: the reach decides.
+      if (water.some(o => o.code !== g.code && isUnder(o.code, g.code))) continue;
+      const s = summarizeGroup(g, g, 'water');
+      const reaches = new Set(g.rows.map(r => childOf(g.code, r.code)).filter(Boolean));
+      // closedAllYear here would be one reach's closure, not necessarily this point's.
+      sums.push(reaches.size > 1 ? { ...s, byReach: true, closedAllYear: false } : s);
+    }
     else if (g.code.startsWith('7.00(')) {
       const s = summarizeGroup(g, g, 'district-streams');
       const scope = districtScope(s);
       if (scope) sums.push({ ...s, scope });
     }
   }
-  return troutRule(kind, sums, [today]);
+  const rule = troutRule(kind, sums, [today], unknown);
+  if (lowFlow.length) rule.caveats.push(`Low-flow closure rules apply here (${lowFlow.map(c => `§${c}`).join(', ')}): streams can close when flows are low; check CDFW's low-flow status.`);
+  return rule;
 }
 
 export const analyzePoint = async (point: LatLng, zoom: number, waterSel: WaterSelection) =>
@@ -172,6 +195,11 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
   if (land && /wilderness/i.test(land.name + ' ' + land.type))
     notes.push({ text: 'Wilderness: motorized access and some gear are prohibited; permits may be required.' });
 
+  // A check that couldn't run mustn't read as "legal": the missing layer may be the one that forbids fishing here.
+  const unchecked = [!d.own && 'land ownership', water === 'ocean' && !d.mpa && 'marine protected areas'].filter(Boolean);
+  if (verdict.status === 'ok' && unchecked.length)
+    verdict = { status: 'warn', text: `Couldn't check ${unchecked.join(' or ')}: fishing may not be allowed here. Try again.` };
+
   const landBadge: Analysis['landBadge'] = land
     ? (AGENCIES[land.key].public ? { status: 'ok', text: 'Public' }
       : land.key === 'NONPROFIT' ? { status: 'warn', text: 'Private conservation land' } : { status: 'no', text: 'Restricted' })
@@ -182,7 +210,11 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
   if (water !== 'ocean') {
     const groups = buildGroups(d.regs);
     regs = { special: groups.filter(g => g.kind.special), general: groups.filter(g => !g.kind.special) };
-    trout = troutToday(groups, water === 'lake' ? 'lake' : 'stream', today);
+    // Regulations that didn't load (or a water whose text is missing) leave the answer unclear, never a default "open".
+    const textMissing = d.regs.hits.some(h => h.kind.special && !groups.some(g => g.code === h.code));
+    const unknown = d.regs.failed.length ? `Couldn't load ${d.regs.failed.join(', ')}; check the booklet`
+      : textMissing ? "This water's regulation text couldn't be loaded; check the booklet" : undefined;
+    trout = troutToday(groups, water === 'lake' ? 'lake' : 'stream', today, unknown);
   }
 
   const pressure = d.pressure ? estimatePressure(d.pressure, { catchAndRelease: trout?.daily === 0, today }) : null;

@@ -29,7 +29,8 @@ export function pick(a: Attrs, keys: string[]): string {
   return '';
 }
 
-// Features with geometry (outSR 4326), following exceededTransferLimit for up to `pages` pages.
+// Features with geometry (outSR 4326), following exceededTransferLimit for up to `pages` pages. More than that is an
+// error, not a silently partial result (offline areas must be complete).
 export async function arcFeatures(url: string, params: Record<string, string>, pages = 5): Promise<{ attributes: Attrs; geometry: any }[]> {
   const out: { attributes: Attrs; geometry: any }[] = [];
   for (let page = 0; page < pages; page++) {
@@ -37,7 +38,7 @@ export async function arcFeatures(url: string, params: Record<string, string>, p
     const j = await (await http(`${url}/query`, { method: 'POST', body })).json();
     if (j.error) throw new Error(j.error.message || 'ArcGIS query failed');
     out.push(...j.features);
-    if (!j.exceededTransferLimit) break;
+    if (!j.exceededTransferLimit) return out;
   }
-  return out;
+  throw new Error('Too much data in this area; zoom in and try again');
 }

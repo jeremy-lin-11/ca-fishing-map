@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { daysBetween, isOpenOn, parseEndpoint, parseSeason } from './season';
+import { isOpenOn, parseEndpoint, parseSeason } from './season';
 
 const d = (y: number, m: number, day: number) => new Date(y, m - 1, day);
 const ymd = (x: Date) => `${x.getFullYear()}-${x.getMonth() + 1}-${x.getDate()}`;
@@ -44,5 +44,4 @@ describe('seasons', () => {
     expect(isOpenOn(parseSeason('Fourth Sat. in in May through Jul. 15.'), d(2026, 5, 23))).toBe(true);
     expect(parseSeason('From Parker Lake to the confluence with Rush Creek.')).toBeNull();
   });
-  it('lists trip days', () => expect(daysBetween(d(2026, 7, 30), d(2026, 8, 2)).map(ymd)).toEqual(['2026-7-30', '2026-7-31', '2026-8-1', '2026-8-2']));
 });

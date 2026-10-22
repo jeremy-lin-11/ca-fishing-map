@@ -80,7 +80,6 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
       <Pane name={DATA} style={{ zIndex: 400 }}><CaliforniaClip pane={DATA} /></Pane>
 
       {visible.land && mapLand.length > 0 && <>
-        {/* Large holders only at low zoom; every owner (cities, districts, nonprofits) from zoom 10. */}
         {/* Zoom 7 would draw ~29,000 parcels, so land starts at 8: large holders at 8-9, every owner from 10.
             The owner of any point shows in the fishing check, so parcels have no hover tooltips. */}
         <EsriFeatureLayer pane={DATA} url={layers.ownership.url} where={coarseWhere} minZoom={8} maxZoom={9} style={landStyle} />
@@ -105,7 +104,8 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
 
       <Polyline positions={STATE_LINE} interactive={false} pathOptions={{ color: '#57606a', weight: 1.5, opacity: 0.8 }} />
 
-      {marker && <CircleMarker center={[marker.lat, marker.lng]} radius={7} pathOptions={{ color: '#fff', weight: 2, fillColor: '#1f6feb', fillOpacity: 1 }} />}
+      {/* markerPane: above the clipped data pane, so overlays don't cover or tint it */}
+      {marker && <CircleMarker pane="markerPane" center={[marker.lat, marker.lng]} radius={7} pathOptions={{ color: '#fff', weight: 2, fillColor: '#1f6feb', fillOpacity: 1 }} />}
       <ClickHandler onClick={onClick} />
       <ViewReporter onView={onView} />
       <FlyTo target={flyTarget} />

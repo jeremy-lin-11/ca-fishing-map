@@ -56,4 +56,14 @@ describe('offline areas', () => {
     expect(interpret(p, 'auto', offlineRaw(o, p, 14)).notes.some(n => n.strong === 'Mission Bay')).toBe(true);
     expect(interpret(p, 'auto', offlineRaw({ ...o, coastalBays: undefined }, p, 14)).water).not.toBe('lake');
   });
+  it('saved MPAs: a no-take reserve offline is not "legal"; open ocean is ocean', () => {
+    const ring = [[-121.96, 36.51], [-121.93, 36.51], [-121.93, 36.53], [-121.96, 36.53], [-121.96, 36.51]] as [number, number][];
+    const o: OfflineData = { bbox: { south: 36.4, west: -122.1, north: 36.6, east: -121.8 }, land: [], regFeatures: [], regRows: [], lakes: [],
+      mpas: [{ rings: [ring], attrs: { name: 'Point Lobos SMR', fullname: 'Point Lobos State Marine Reserve', type: 'SMR' } }] };
+    const inReserve = { lat: 36.52, lng: -121.945 }, offshore = { lat: 36.5, lng: -122.05 };
+    expect(interpret(inReserve, 'auto', offlineRaw(o, inReserve, 14)).verdict.status).toBe('no');
+    expect(interpret(offshore, 'auto', offlineRaw(o, offshore, 14)).water).toBe('ocean');
+    const old = { ...o, mpas: undefined }; // saved before MPAs were saved, on the coast: the MPA check is reported missing
+    expect(interpret(offshore, 'auto', offlineRaw(old, offshore, 14)).verdict.status).toBe('warn');
+  });
 });

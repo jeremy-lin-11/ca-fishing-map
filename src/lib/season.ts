@@ -70,9 +70,9 @@ const ENDPOINT_TEXT = `(?:the\\s+)?(?:(?:first|second|third|fourth|last)\\s+(?:$
 // "A through B", or "A to B" (both sides must still be date phrases, so "from Parker Lake to …" can't match).
 const RANGE = new RegExp(`(${ENDPOINT_TEXT})\\s*(?:,\\s*\\d{4}\\s*)?(?:through|to)\\s+(${ENDPOINT_TEXT})`, 'gi');
 
-// "but only on Sat., Sun., Wed., legal holidays…" -> [6, 0, 3]
+// "but only on Sat., Sun., Wed., legal holidays…" (also without "on") -> [6, 0, 3]
 function onlyOnDays(s: string): number[] | undefined {
-  const m = s.match(/only on ((?:(?:sun|mon|tue|wed|thu|fri|sat)[a-z]*\.?[,\s]*(?:and\s+)?)+)/i);
+  const m = s.match(/\bonly (?:on )?((?:(?:sun|mon|tue|wed|thu|fri|sat)[a-z]*\.?[,\s]*(?:and\s+)?)+)/i);
   if (!m) return undefined;
   return [...m[1].toLowerCase().matchAll(/(sun|mon|tue|wed|thu|fri|sat)/g)].map(x => WEEKDAYS[x[1]]);
 }
@@ -114,11 +114,4 @@ export function isOpenOn(season: Season | null, date: Date): boolean | null {
     // Wrapping ranges ("Nov. 16 through … Apr.") are open from start to Dec 31 and Jan 1 to end.
     return start <= end ? d >= start && d <= end : d >= start || d <= end;
   });
-}
-
-// Every calendar day from start to end inclusive (capped, for trip ranges).
-export function daysBetween(start: Date, end: Date, max = 60): Date[] {
-  const out: Date[] = [];
-  for (let d = dayOnly(start); d <= dayOnly(end) && out.length < max; d = shift(d, 1)) out.push(d);
-  return out;
 }

@@ -20,7 +20,7 @@ select{width:100%;padding:6px;border-radius:6px;border:1px solid #c5ccd3}
 .pressure-reasons span{display:inline-block;width:1.1em;font-size:11px;color:#57606a}
 .card h3{margin:0 0 4px;font-size:13px;color:#57606a;font-weight:600}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;font-weight:600;font-size:12px}
-.ok{background:#1a7f37}.warn{background:#bf8700}.no{background:#cf222e}.info{background:#6e7781}
+.ok{background:#1a7f37}.warn{background:#bf8700}.no{background:#cf222e}
 .card ul{margin:6px 0 0;padding-left:18px}
 .card li{margin:3px 0}
 .loading{color:#57606a;font-style:italic}
@@ -46,7 +46,7 @@ details summary{cursor:pointer;font-weight:600}
 .landpicker .landtype{margin-left:16px}
 .landpicker i{display:inline-block;width:11px;height:11px;border-radius:2px;opacity:.8}
 details.sub{margin:0 0 4px 20px;font-size:12px}
-details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weight:400}
+details.sub summary{cursor:pointer;color:#57606a;font-weight:400}
 .titlebar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .titlebar h1{margin:0}
 .copylink{padding:4px 10px;font-size:12px;white-space:nowrap}
@@ -71,7 +71,6 @@ details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weig
 .modal.report .err p{margin:0}
 .report-preview{white-space:pre-wrap;font-size:11px;background:#f6f8fa;padding:6px;border-radius:6px;max-height:180px;overflow:auto}
 .modal h2{margin:0 0 8px;font-size:18px;color:#1c2630;text-transform:none;letter-spacing:0}
-.about summary{cursor:pointer;font-weight:600}
 .about ul{padding-left:18px}
 .crash{border-color:#cf222e}
 
@@ -116,8 +115,8 @@ details.sub summary,details.field summary{cursor:pointer;color:#57606a;font-weig
   .sheet-handle span{width:40px;height:5px;border-radius:3px;background:#afb8c1}
   h1{font-size:16px}
   .titlebar{margin-bottom:8px}
-  #search input,select,.field input{font-size:16px} /* below 16px iOS zooms the page on focus */
+  #search input,select,.field input,textarea,.offline input,.modal input{font-size:16px} /* below 16px iOS zooms the page on focus */
   .leaflet-bottom{bottom:148px}
-  .maplayers-panel{width:min(300px,calc(100vw - 20px));max-height:calc(100dvh - 148px - 70px)}
+  .maplayers-panel{width:min(300px,calc(100vw - 20px));max-height:calc(50dvh - 70px)} /* above the half-height sheet */
   .suggestions{max-height:40dvh}
 }
