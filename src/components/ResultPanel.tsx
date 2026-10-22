@@ -36,13 +36,26 @@ function troutChip(t: NonNullable<Analysis['trout']>): { status: Status; text: s
   return { status: 'ok', text: 'Open today' };
 }
 
+// Short label for the gear rules in force, for the summary ("Artificial lures only · barbless"); the trout card
+// quotes the rules themselves.
+export function gearLabel(gear: string[]): string | null {
+  const t = gear.join(' ').toLowerCase();
+  const parts = [
+    /artificial flies/.test(t) ? 'Artificial flies only' : /only\s+arti/.test(t) ? 'Artificial lures only (no bait)' : /bait may be used/.test(t) ? 'Bait allowed' : null,
+    /barbless/.test(t) ? (/only\s+arti/.test(t) ? 'barbless' : 'Barbless hooks only') : null,
+    /bait may be used only with/.test(t) ? 'hook-size limits' : null
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
+
 // The answer in one glance: the verdict, then land and today's season. Details follow in the cards.
 function Summary({ r }: { r: Analysis }) {
   const land = r.lands[0];
   const chips = [
     { ...r.landBadge, text: land ? `${r.landBadge.text} · ${land.name}` : r.landBadge.text },
     // A green "open" chip next to a "no fishing" verdict would read as a contradiction, so it's left to the card.
-    ...(r.trout && r.verdict.status !== 'no' ? [troutChip(r.trout)] : [])
+    ...(r.trout && r.verdict.status !== 'no' ? [troutChip(r.trout)] : []),
+    ...(r.trout && r.verdict.status !== 'no' && r.trout.open !== false && gearLabel(r.trout.gear) ? [{ status: 'warn' as Status, text: gearLabel(r.trout.gear)! }] : [])
   ];
   return (
     <div className={`summary ${r.verdict.status}`} role="status">
@@ -141,6 +154,8 @@ export default function ResultPanel({ r }: { r: Analysis }) {
           text={r.trout.open === true ? 'Open today' : r.trout.open === false ? 'Closed today' : 'Season unclear'} />
         <ul>
           <li>{r.trout.note} <span className="code">{r.trout.source}</span></li>
+          {r.trout.open !== false && <li><b>Gear:</b> {r.trout.gear.length ? r.trout.gear.join(' ')
+            : 'No special gear rules for this water; statewide hook rules apply (max. 3 hooks or 3 lures per line, §2.00).'}</li>}
           {r.trout.caveats.map((c, i) => <li key={i} className="warn-text">{c}</li>)}
         </ul>
         <p className="hint">Change "Water type" above if this point is a {r.water === 'lake' ? 'stream' : 'lake'}; lakes and streams have different seasons.</p>

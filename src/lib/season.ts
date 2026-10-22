@@ -70,6 +70,22 @@ const ENDPOINT_TEXT = `(?:the\\s+)?(?:(?:first|second|third|fourth|last)\\s+(?:$
 // "A through B", or "A to B" (both sides must still be date phrases, so "from Parker Lake to …" can't match).
 const RANGE = new RegExp(`(${ENDPOINT_TEXT})\\s*(?:,\\s*\\d{4}\\s*)?(?:through|to)\\s+(${ENDPOINT_TEXT})`, 'gi');
 
+// Gear rules inside the season column: "Only artificial lures with barbless hooks may be used[ from A through B]."
+// and "Bait may be used from A through B." They aren't part of the season (their dates would otherwise be read as
+// open periods), and some apply only part of the year. Matches CDFW's typos too ("artiticial", "maybe use",
+// "lures will barbless hooks").
+const GEAR = new RegExp(`(?:at all times,\\s*)?(?:only\\s+(?:arti\\w*|barbless)[^.|]*?|bait)\\s+(?:may|will)\\s*be\\s*used?(?:\\s+only\\s+with[^.|]*?)?(?:\\s+from\\s+(${ENDPOINT_TEXT})\\s*(?:through|to)\\s+(${ENDPOINT_TEXT}))?\\.?`, 'gi');
+
+export interface GearRule { text: string; window: Season | null } // window null: whenever the water is open
+export function gearRules(text: string): GearRule[] {
+  const s = text.replace(/\s+/g, ' ');
+  return [...s.matchAll(GEAR)].map(m => {
+    const clause = m[0].trim().replace(/^at all times,\s*/i, '');
+    return { text: clause.charAt(0).toUpperCase() + clause.slice(1).replace(/\.?$/, '.'), window: m[1] && m[2] ? parseSeason(`${m[1]} through ${m[2]}`) : null };
+  });
+}
+const withoutGear = (s: string) => s.replace(GEAR, ' ');
+
 // "but only on Sat., Sun., Wed., legal holidays…" (also without "on") -> [6, 0, 3]
 function onlyOnDays(s: string): number[] | undefined {
   const m = s.match(/\bonly (?:on )?((?:(?:sun|mon|tue|wed|thu|fri|sat)[a-z]*\.?[,\s]*(?:and\s+)?)+)/i);
@@ -79,7 +95,7 @@ function onlyOnDays(s: string): number[] | undefined {
 
 export function parseSeason(text: string | undefined): Season | null {
   if (!text) return null;
-  const s = text.replace(/\s+/g, ' ').replace(/\bin in\b/gi, 'in').trim(); // "in in May" typo in CDFW text
+  const s = withoutGear(text.replace(/\s+/g, ' ').replace(/\bin in\b/gi, 'in')).trim(); // "in in May" typo in CDFW text
   const days = onlyOnDays(s);
   const found = [...s.matchAll(RANGE)];
   const closure = /closed to (?:all )?fishing/i.test(s);

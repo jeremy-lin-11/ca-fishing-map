@@ -1,7 +1,7 @@
 // Fishing rules for one water on given dates: open/closed and the trout limit, from CDFW special regulations,
 // district general regulations (§7.00) and the statewide default (§5.85).
 import type { RegGroup } from './regdata';
-import { isOpenOn, parseSeason, type Season } from './season';
+import { gearRules, isOpenOn, parseSeason, type GearRule, type Season } from './season';
 
 // One season period of a regulation entry ("Last Sat. in Apr. through Jul. 31 | 5 trout"). Plain data (no parsed
 // functions); seasons are parsed on use and cached.
@@ -11,6 +11,11 @@ const seasonCache = new Map<string, Season | null>();
 export const seasonOf = (p: Period): Season | null => {
   if (!seasonCache.has(p.season)) seasonCache.set(p.season, parseSeason(p.season));
   return seasonCache.get(p.season)!;
+};
+const gearCache = new Map<string, GearRule[]>();
+const gearOf = (p: Period): GearRule[] => {
+  if (!gearCache.has(p.season)) gearCache.set(p.season, gearRules(p.season));
+  return gearCache.get(p.season)!;
 };
 
 // `water`: the water's own special regulation (§7.40/§7.50, incl. "X and tributaries").
@@ -71,6 +76,7 @@ export interface TroutRule {
   keep: boolean | null;    // trout may be kept on every requested day
   daily: number | null;    // most restrictive daily trout limit over the days
   possession: number | null;
+  gear: string[];          // gear rules in force (CDFW's words, e.g. "Only artificial lures with barbless hooks may be used.")
   source: string;          // e.g. "§7.50(b)(21)" or "statewide §5.85(a)(1)"
   note: string;
   caveats: string[];       // e.g. anadromous-water district rules that may apply
@@ -80,11 +86,12 @@ const STATEWIDE_STREAM_SEASON = parseSeason('Last Sat. in Apr. through Nov. 15')
 const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 // Rule for one day from one set of summaries (most restrictive wins across summaries).
-function dayRule(sums: RegSummary[], d: Date): { open: boolean | null; daily: number | null; possession: number | null } {
+function dayRule(sums: RegSummary[], d: Date): { open: boolean | null; daily: number | null; possession: number | null; gear: string[] } {
   let open: boolean | null = true, daily: number | null = null, possession: number | null = null, anyLimit = false;
+  const gear: string[] = [];
   for (const s of sums) {
     if (s.byReach) { open = null; continue; } // the reach decides; any reach's closure isn't this point's
-    if (s.closedAllYear) return { open: false, daily: 0, possession: 0 };
+    if (s.closedAllYear) return { open: false, daily: 0, possession: 0, gear: [] };
     const withSeason = s.periods.filter(p => seasonOf(p));
     let o: boolean | null, chosen: Period[];
     if (withSeason.length) {
@@ -94,14 +101,16 @@ function dayRule(sums: RegSummary[], d: Date): { open: boolean | null; daily: nu
     } else {
       chosen = s.periods; o = s.periods.length ? null : true; // no readable season: unknown if periods exist
     }
-    if (o === false) return { open: false, daily: 0, possession: 0 };
+    if (o === false) return { open: false, daily: 0, possession: 0, gear: [] };
     if (o === null) open = null;
     const lims = chosen.map(p => p.daily).filter((n): n is number => n !== null);
     if (lims.length) { const lim = Math.max(...lims); daily = daily === null ? lim : Math.min(daily, lim); anyLimit = true; }
     const ps = chosen.map(p => p.possession).filter((n): n is number => n !== null);
     if (ps.length) { const pl = Math.max(...ps); possession = possession === null ? pl : Math.min(possession, pl); }
+    // Gear rules of the periods in force, if their own window (when given) includes the day; unreadable windows count.
+    for (const p of chosen) for (const g of gearOf(p)) if (!g.window || isOpenOn(g.window, d) !== false) gear.push(g.text);
   }
-  return { open, daily: anyLimit ? daily : null, possession };
+  return { open, daily: anyLimit ? daily : null, possession, gear: [...new Set(gear)] };
 }
 
 // `unknown`: the regulations couldn't be fully loaded or checked, so the answer is "unclear", never a default "open".
@@ -116,14 +125,14 @@ export function troutRule(kind: 'lake' | 'stream', sums: RegSummary[], dates: Da
   // With only an unverified special rule, the district or statewide default may not apply either.
   const reason = unknown ?? (!special.length && sums.some(s => s.scope === 'water' && s.unverified)
     ? 'Special regulation for this water could not be verified; check the booklet' : undefined);
-  if (reason) return { open: null, keep: null, daily: null, possession: null, source: sums.filter(s => s.scope === 'water').map(s => `§${s.code}`).join(', ') || 'unknown', note: reason, caveats };
+  if (reason) return { open: null, keep: null, daily: null, possession: null, gear: [], source: sums.filter(s => s.scope === 'water').map(s => `§${s.code}`).join(', ') || 'unknown', note: reason, caveats };
 
   // Special regulations replace the district and statewide rules ("except those listed in the Special Regulations").
   const governing = special.length ? special : districtStreams;
   const source = governing.length ? [...new Set(governing.map(s => `§${s.code}`))].join(', ') : kind === 'lake' ? 'statewide §5.85(a)(1)' : 'statewide §5.85(a)(2)';
   const days = dates.length ? dates : [new Date()];
   const perDay = days.map(d => {
-    let r = governing.length ? dayRule(governing, d) : { open: kind === 'lake' ? true : isOpenOn(STATEWIDE_STREAM_SEASON, d), daily: 5, possession: 10 };
+    let r = governing.length ? dayRule(governing, d) : { open: kind === 'lake' ? true : isOpenOn(STATEWIDE_STREAM_SEASON, d), daily: 5, possession: 10, gear: [] as string[] };
     // A special regulation that sets a season but no trout limit leaves the statewide limit in place.
     if (r.open !== false && r.daily === null) r = { ...r, daily: 5, possession: r.possession ?? 10 };
     // Otherwise, with no possession limit stated, possession is one daily bag (§1.17).
@@ -146,5 +155,6 @@ export function troutRule(kind: 'lake' | 'stream', sums: RegSummary[], dates: Da
     : open === null ? `${daily} trout/day; season text could not be read, check the rule`
     : daily === 0 ? `Open ${span}, catch-and-release only (0 trout)`
     : `Open ${span}: ${daily} trout/day, ${possession} in possession`;
-  return { open, keep, daily, possession, source, note, caveats };
+  const gear = [...new Set(openDays.flatMap(r => r.gear))];
+  return { open, keep, daily, possession, gear, source, note, caveats };
 }

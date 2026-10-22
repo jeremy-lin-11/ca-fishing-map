@@ -35,8 +35,8 @@ Tap anywhere in California and you get one clear verdict (yes / check first / no
   the public. Military land and most private land are not.
 - **Which fishing rules apply to that water.** The water's special regulations if it has any, the district rules
   for its area, and the statewide default otherwise.
-- **Whether it's open today, and the trout limit.** How many trout you can keep per day, and how many you can have
-  in total.
+- **Whether it's open today, the trout limit and the gear rules.** How many trout you can keep per day and in total,
+  and whether only artificial lures, flies or barbless hooks are allowed (quoted from the regulation).
 - **Warnings** where the rules can't be applied automatically. For example, rules for streams where salmon and
   steelhead run, or a regulation the tool couldn't match to the water with confidence.
 - **Estimated fishing pressure** (low / moderate / high) where fishing is allowed. It's based on road access, how many
