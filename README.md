@@ -270,8 +270,9 @@ scripts/
   extract-osm.mjs    OSM extract → public/osm/ (resumable, polite to Overpass); feeds the place index
   build-places.mjs   place-search index → public/places.json
   build-lakes.mjs    OSM lake outlines → public/lakes/ (names saying lake/reservoir/pond only; river polygons excluded)
+  og-image.svg       link-preview image source → public/og-image.png via `swift scripts/render-og-image.swift` (macOS)
 public/
-  sw.js, manifest.webmanifest, icon.svg, _headers (Cloudflare only), osm/, places.json, lakes/
+  sw.js, manifest.webmanifest, icon.svg, og-image.png, _headers (Cloudflare only), osm/, places.json, lakes/
 .github/workflows/
   pages.yml          test, build and deploy to GitHub Pages on push to main
 ```
@@ -295,6 +296,9 @@ deploy is just the static `dist/` folder.
 1. Every push to `main` runs `.github/workflows/pages.yml`.
 2. The workflow installs with `npm ci` and runs `npm test`. A failing test stops the deploy.
 3. It builds with `BASE_PATH=/ca-fishing-map/` and publishes `dist/`.
+
+**Link previews:** the `og:` tags in `index.html` use absolute URLs on this domain (crawlers require them). Update
+them if the site moves.
 
 To redeploy without a code change, run the workflow from the Actions tab (Run workflow). For progress and logs, use
 `gh run list` / `gh run watch`.

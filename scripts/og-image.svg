@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <!-- Link preview for social sites (og:image). Render to public/og-image.png with scripts/render-og-image.swift. -->
+  <rect width="1200" height="630" fill="#f6f8fa"/>
+
+  <!-- Left: title and pitch -->
+  <g transform="translate(64 72)">
+    <rect width="84" height="84" rx="16" fill="#1f6feb"/>
+    <g transform="scale(0.164)">
+      <path d="M64 368 L196 176 L268 272 L320 208 L448 368 Z" fill="#2e8b57"/>
+      <path d="M196 176 L232 228 L208 236 L184 220 Z" fill="#fff" opacity=".9"/>
+      <path d="M64 368 H448 V408 H64 Z" fill="#4ea8de"/>
+      <path d="M300 392 c22 -18 50 -18 72 0 c-22 18 -50 18 -72 0 Z M372 392 l18 -12 v24 Z" fill="#fff"/>
+    </g>
+  </g>
+  <text x="64" y="232" font-size="64" font-weight="bold" fill="#1c2630">Can I Fish Here?</text>
+  <text x="64" y="296" font-size="44" font-weight="bold" fill="#1f6feb">California</text>
+  <!-- One <text> per line: AppKit ignores <tspan> positions. -->
+  <g font-size="28" fill="#424a53">
+    <text x="64" y="370">Tap any spot on the map to see</text>
+    <text x="64" y="410">public vs. private land, CDFW rules,</text>
+    <text x="64" y="450">seasons and trout limits.</text>
+  </g>
+  <text x="64" y="540" font-size="24" font-weight="bold" fill="#1a7f37">Free · No sign-up · Works offline</text>
+
+  <!-- Right: stylized map with a result card -->
+  <g transform="translate(620 40)">
+    <clipPath id="map"><rect width="540" height="550" rx="20"/></clipPath>
+    <g clip-path="url(#map)">
+      <rect width="540" height="550" fill="#e8efe3"/>
+      <path d="M0 0 H540 V230 C430 260 330 190 220 240 C130 280 60 230 0 260 Z" fill="#cfe3c4"/>
+      <path d="M300 40 C380 30 470 70 480 130 C490 190 410 220 340 200 C270 180 230 120 250 80 C260 60 280 44 300 40 Z" fill="#9ccbe8" stroke="#6aa9d6" stroke-width="3"/>
+      <path d="M-10 420 C80 380 140 330 210 300 C270 275 300 230 320 195" fill="none" stroke="#6aa9d6" stroke-width="7" stroke-linecap="round"/>
+      <path d="M0 330 L540 300" stroke="#fff" stroke-width="9"/>
+      <path d="M0 330 L540 300" stroke="#e1c48a" stroke-width="5"/>
+      <rect x="0" y="0" width="540" height="550" fill="none" stroke="#d0d7de" stroke-width="2" rx="20"/>
+    </g>
+    <!-- Pin -->
+    <g transform="translate(205 188)">
+      <ellipse cx="0" cy="40" rx="12" ry="5" fill="#000" opacity=".2"/>
+      <path d="M0 40 C-6 26 -22 14 -22 -2 A22 22 0 1 1 22 -2 C22 14 6 26 0 40 Z" fill="#cf222e" stroke="#fff" stroke-width="3"/>
+      <circle cx="0" cy="-2" r="8" fill="#fff"/>
+    </g>
+    <!-- Result card, matching the app's summary -->
+    <g transform="translate(30 290)">
+      <rect width="480" height="226" rx="14" fill="#000" opacity=".08" transform="translate(0 6)"/>
+      <rect width="480" height="226" rx="14" fill="#f0fff4" stroke="#1a7f37" stroke-width="2"/>
+      <rect width="10" height="226" rx="5" fill="#1a7f37"/>
+      <circle cx="46" cy="44" r="17" fill="#1a7f37"/>
+      <path d="M38 44 l6 6 l11 -12" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="74" y="53" font-size="26" font-weight="bold" fill="#1c2630">Fishing legal with a CA license</text>
+      <g font-size="20">
+        <rect x="28" y="84" width="330" height="36" rx="18" fill="#fff" stroke="#1a7f37" stroke-width="2"/>
+        <text x="46" y="109" fill="#116329">✓ Public · Inyo National Forest</text>
+        <rect x="28" y="130" width="250" height="36" rx="18" fill="#fff" stroke="#1a7f37" stroke-width="2"/>
+        <text x="46" y="155" fill="#116329">✓ Open today · 5 trout</text>
+        <rect x="288" y="130" width="164" height="36" rx="18" fill="#fff" stroke="#bf8700" stroke-width="2"/>
+        <text x="306" y="155" fill="#7d4e00">! Barbless only</text>
+      </g>
+      <text x="30" y="200" font-size="18" fill="#57606a">Lake or reservoir · Mono County</text>
+    </g>
+  </g>
+</svg>
