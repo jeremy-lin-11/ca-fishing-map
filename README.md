@@ -39,7 +39,8 @@ Tap anywhere in California and you get one clear verdict (yes / check first / no
   and whether only artificial lures, flies or barbless hooks are allowed (quoted from the regulation).
 - **Warnings** where the rules can't be applied automatically. For example, rules for streams where salmon and
   steelhead run, or a regulation the tool couldn't match to the water with confidence.
-- **Game fish in the watershed** (CDFW ranges by watershed: what may live nearby, not a survey of this water).
+- **Game fish in the watershed.** Trout, bass, catfish and other game fish whose CDFW range includes the watershed.
+  It's a range map, not a survey: a species listed may not live in that lake or stream.
 - **Fish plantings and invasive mussels.** When CDFW last stocked the water and when the next planting is scheduled,
   and a clean-drain-dry reminder at quagga/zebra mussel-infested waters.
 - **Estimated fishing pressure** (low / moderate / high) where fishing is allowed. It's based on road access, how many
@@ -48,7 +49,8 @@ Tap anywhere in California and you get one clear verdict (yes / check first / no
 - **Ocean basics too:** Marine Protected Areas (no-take or limited-take zones), rockfish depth limits, and depth.
 
 The map can also show public land by owner, waters with special regulations, protected marine areas, CDFW fish
-plantings (past year and scheduled), mussel-infested waters and depth charts. You can search for a town or lake, or jump to your current location.
+plantings (past year and scheduled), mussel-infested waters and depth charts. You can search for a town or lake, or
+jump to your current location.
 
 **Works without signal.** Before a trip, save a map area. Inside it, fishing checks still work with no
 connection. That's useful in the backcountry, where there usually isn't any.
@@ -63,8 +65,9 @@ your layers) to send to someone.
 ### Important
 
 This is **not an official CDFW tool**. It combines public government data, which can be out of date or wrong.
-The regulation text comes from CDFW's regulations dataset (Title 14 text, updated through Oct 2026); the app shows
-its date and warns if it predates the booklet in effect. Some rules can't be read automatically. Always confirm against the current CDFW
+The regulation text comes from CDFW's regulations dataset (Title 14 text, which CDFW keeps updated). The app shows
+when the dataset was last updated, and warns if that's before the booklet in effect. Some rules can't be read
+automatically, and the app says so rather than guessing. Always confirm against the current CDFW
 [freshwater](https://wildlife.ca.gov/Fishing/Inland/Regulations) and
 [ocean](https://wildlife.ca.gov/Fishing/Ocean/Regulations) regulations before you fish.
 
@@ -99,7 +102,8 @@ public agency data services queried directly from the browser, plus a place-sear
  │        ▼                                                    ▼                     │
  │  lib/analyze.ts  fetchPoint → interpret            esri-leaflet overlays          │
  │  lib/rules.ts, season.ts, regdata.ts, land.ts      (cells clipped to California,  │
- │  lib/offline.ts  saved area → same interpret        PBF queries, response cache)  │
+ │  lib/plantings.ts, species.ts, pressure.ts          PBF queries, response cache)  │
+ │  lib/offline.ts  saved area → same interpret       PlantingsLayer (SVG dots)      │
  │        │            lib/ = plain TypeScript: no React, no Leaflet                 │
  │        ▼                                                                          │
  │  lib/http.ts  (one swappable transport; tests use curl)                           │
@@ -109,8 +113,9 @@ public agency data services queried directly from the browser, plus a place-sear
  └───────────────┬───────────────────────────────────────────────┬───────────────────┘
                  │ live queries (ArcGIS REST, image services)    │ static files (same origin)
                  ▼                                               ▼
-  CDFW regulations, MPAs, RCA lines · CAL FIRE land ownership    public/places.json
-  Esri Living Atlas (unit names, water bodies, counties)         (towns + OSM-named waters)
+  CDFW regulations, fish ranges, plantings, mussel waters,       public/places.json
+  MPAs, RCA lines · CAL FIRE land ownership                      (towns + OSM-named waters)
+  Esri Living Atlas (unit names, water bodies, counties)         public/lakes/ (OSM lake outlines)
   NOAA elevation/depth · USGS basemaps
 ```
 
@@ -130,8 +135,9 @@ public agency data services queried directly from the browser, plus a place-sear
 
 ### The fishing check
 
-`lib/analyze.ts`. One tap fires about a dozen parallel queries; the regulation lookup is two map layers (stream
-lines; lake, tributary-area and district polygons) plus the text table. Each query fails soft (`null`) and is listed under "Could not load":
+`lib/analyze.ts`. One tap fires about fifteen parallel queries; the regulation lookup is two map layers (stream
+lines; lake, tributary-area and district polygons) plus the text table. Each query fails soft (`null`) and is listed
+under "Could not load":
 
 | Query | Service | Used for |
 |---|---|---|
@@ -146,7 +152,8 @@ lines; lake, tributary-area and district polygons) plus the text table. Each que
 | county | US Census counties | display, offshore detection |
 | elevation/depth | NOAA NCEI DEM | ocean depth, lake surface elevation |
 | RCA lines, lake contours | CDFW | groundfish depth lines, Salton Sea depth |
-| pressure signals | Caltrans public roads, CDFW stocked waters + planting log, wilderness, Coastal Commission access, USFS recreation sites; town populations from `places.json` | estimated fishing pressure (`pressure.ts`); the planting log also fills the plantings card (`plantings.ts`) |
+| pressure signals | Caltrans public roads, CDFW stocked waters + planting log, wilderness, Coastal Commission access, USFS recreation sites; town populations from `places.json` | estimated fishing pressure (`pressure.ts`) |
+| plantings | CDFW stocked waters at the point, then their planting log rows (same query as pressure) | plantings card: last and next planting (`plantings.ts`) |
 
 **Estimated pressure** (`lib/pressure.ts`): `fetchPressure` gathers the signals and `estimatePressure` scores them.
 Public roads (Caltrans) are counted within ¼, 1 and 3 miles. The total maps to low / moderate / high, and every signal that moved
@@ -173,17 +180,28 @@ Nov. 15").
 - **Canvas rendering.** Land ownership can put 5,000–29,000 parcels in view, so the map uses canvas
   (`preferCanvas`), display-only layers aren't hit-tested, and land starts at zoom 8 (large holders only at 8–9).
 
+The fish-plantings overlay (`components/PlantingsLayer.tsx`) isn't an esri-leaflet layer: the whole planting log
+(about 2,000 rows) is fetched once and drawn as one dot per stocked water, colored by scheduled or this week, last 6
+weeks, or earlier. It uses its own SVG pane, because a canvas pane would cover the map and block hover on the layers
+below. Clicks on a dot still reach the map and run the fishing check.
+
 ### Offline areas
 
 `lib/offline.ts`, `tiles.ts`, `areaStore.ts`, `public/sw.js`. "Save this map view" (up to 60 km across) stores the
 raw inputs an offline check needs in IndexedDB:
 - land polygons with their ownership attributes;
-- every regulation polygon and its text rows;
-- lake and reservoir polygons from the same Esri water-bodies layer the online check uses.
+- every regulation feature (stream lines; lake, tributary-area and district polygons) and its text rows;
+- lake and reservoir polygons from the same Esri water-bodies layer the online check uses, and OSM lake outlines;
+- San Francisco Bay District and coastal bay outlines, Marine Protected Areas, mussel-infested waters and game fish
+  range watersheds.
+
+Depth, unit names, plantings and pressure need the network and are left out of offline answers.
 
 It also caches USGS topo tiles for zoom 8–14 (at most 4,000) in Cache Storage. The service worker serves the app
 shell network-first and saved tiles cache-first. It never caches live regulation data, so that can't go silently
-stale while online. Areas saved by earlier versions, which stored OpenStreetMap lakes, still load.
+stale while online. Areas saved by earlier versions still load: older OpenStreetMap lakes, regulation text in the
+older dataset's markup, and saves without bays, MPAs, mussel waters or fish ranges (those parts are then skipped or
+reported as not checked).
 
 ### Shareable links
 
@@ -220,12 +238,17 @@ The public project key is in `.env.production`.
 | Land ownership | CAL FIRE California Land Ownership | California-only, every owner type incl. LADWP, districts, nonprofits, tribal |
 | Regulations | CDFW RFRService (map layers + Title 14 text table keyed by section) | the data behind CDFW's regulations map, kept current (the older regLinkFishing service still has 2021–2022 booklet text and ~6% mis-numbered map features) |
 | Fish plantings | CDFW hatchery planting log (BIOS ds2897) | the same data as CDFW's Fishing Guide; a year back plus the next announced week |
+| Game fish | CDFW GameFishRanges (RFRService layer 4, per HUC12 watershed) | the only public per-species data. Ranges, not surveys: largemouth bass and green sunfish are marked in almost every watershed |
+| Invasive mussels | CDFW quagga and zebra mussel infested waters (BIOS ds2801) | CDFW's own list of infested waters |
 | Seasons & limits | parsed from that text (`season.ts`, `rules.ts`) | no structured season data exists |
 | Lakes | Esri USA Detailed Water Bodies (USGS NHD), then OpenStreetMap lake outlines (`public/lakes/`) | lake vs. stream at a point; NHD types tell salt evaporators and industrial ponds from lakes; OSM fills in reservoirs NHD maps only as unnamed "Inundation Area" (e.g. Stevens Creek Reservoir) and names unnamed lakes |
 | Bays | CDFW San Francisco Bay District (§27.00) polygon; PMEP coastal embayments (CDFW BIOS ds2792) | CDFW's inland district polygons also cover bays, so bay outlines decide where ocean rules apply |
 | Elevation & depth | NOAA NCEI DEM mosaic | ocean depth and lake surface elevation |
 | Basemaps | USGS National Map (topo, imagery), NOAA relief | public domain: fine for public use and offline caching |
 | Place search | Census places + OpenStreetMap names → `public/places.json` | no third-party geocoder; works offline |
+
+Not used: the CDFW Fishing Guide's "Fishing Locations" layer (BIOS ds2880: per-water species, wild/hatchery trout,
+comments) answers "Token Required", so it isn't public. Game fish ranges are the closest public substitute.
 
 ### Correctness safeguards
 
@@ -251,10 +274,12 @@ The public project key is in `.env.production`.
 
 ### Testing
 
-- `npm test`: unit tests for the season parser, rules engine, regulation parsing and section check, land
-  classification, geometry, California clipping, URL state, place search and offline answers.
-- `npm run test:live`: known places against the real services (e.g. Crowley Lake's two season periods, the Point
-  Lobos MPA). It also compares PBF layer queries against GeoJSON. Node's `fetch` ignores the HTTP proxy in some
+- `npm test`: unit tests for the season parser, rules engine, regulation parsing (both markups) and section check,
+  land classification, plantings, game fish ranges, mussel notes, geometry, California clipping, URL state, place
+  search and offline answers.
+- `npm run test:live`: known places against the real services (e.g. Crowley Lake's two season periods, Twin Lakes
+  (Mammoth), the Klamath quota reach, the Point Lobos MPA, Lake Piru's mussel note, Packer Lake's plantings). It also
+  compares PBF layer queries against GeoJSON, and an offline area's answers against the online ones. Node's `fetch` ignores the HTTP proxy in some
   environments, so tests swap the transport for curl via `setHttp`.
 - Not automated: in-browser rendering (Leaflet, service worker, IndexedDB, geolocation). Check those manually.
 
@@ -276,7 +301,7 @@ src/
     offline.ts, tiles.ts, areaStore.ts   saved areas, tile cache, IndexedDB
     pbfQuery.ts        protobuf feature queries + response cache (map overlays)
     geo.ts, california.ts, places.ts, urlState.ts, depth.ts, arcgis.ts, http.ts
-  components/        React UI: MapView, EsriLayers, Sidebar, ResultPanel, OfflineAreas, LocateControl, About, …
+  components/        React UI: MapView, EsriLayers, PlantingsLayer, Sidebar, ResultPanel, OfflineAreas, About, …
 scripts/
   extract-osm.mjs    OSM extract → public/osm/ (resumable, polite to Overpass); feeds the place index
   build-places.mjs   place-search index → public/places.json
