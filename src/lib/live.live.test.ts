@@ -147,6 +147,12 @@ describe('live services', () => {
     expect(a.notes.find(n => n.strong === 'Lake Piru')?.text).toMatch(/quagga mussel-infested/);
     expect((await at(37.5934, -118.7364)).notes.some(n => /mussel-infested/.test(n.text ?? ''))).toBe(false); // Crowley
   });
+  it('game fish ranges: Lake Tahoe watershed lists trout and whitefish; none offshore', async () => {
+    const a = await at(39.09, -120.04);
+    expect(a.species?.watersheds).toContain('Lake Tahoe');
+    expect(a.species?.groups.find(g => g.group === 'Trout, salmon & whitefish')?.names).toEqual(expect.arrayContaining(['Rainbow trout', 'Mountain whitefish']));
+    expect((await at(36.75, -122.0)).species).toBeNull();
+  });
   it('fish plantings: map sites and the stocked water at a point', async () => {
     const sites = await fetchPlantSites();
     expect(sites.length).toBeGreaterThan(200);

@@ -2,8 +2,8 @@
 //
 // Saved per area: land ownership polygons with their Own_* fields, CDFW regulation polygons (lakes, streams,
 // tributary areas, all districts) with their text rows, Esri water-body polygons (for "is this click on a
-// lake"), and the outlines of San Francisco Bay's District, other coastal bays and mussel-infested waters where the
-// area touches them. An offline fishing check rebuilds the same Raw input the online check gets from the services, then runs
+// lake"), the outlines of San Francisco Bay's District, other coastal bays and mussel-infested waters where the
+// area touches them, and game fish range watersheds. An offline fishing check rebuilds the same Raw input the online check gets from the services, then runs
 // the same interpret(), so offline answers can't drift from online ones.
 import { CONFIG } from '../config';
 import { arcFeatures, type Attrs } from './arcgis';
@@ -13,6 +13,7 @@ import { bboxSpanKm, nearestBetween, pointInPolygon, projector, type BBox, type 
 import { featDesc, fetchRegRows, KINDS, mapCodes, POLYGON_CATEGORY, resolveHits, withText, type Hit } from './regdata';
 import { osmLakesIn, type OsmLake } from './osmLakes';
 import { CA_RINGS } from '../data/california';
+import { SPECIES_FIELDS } from './species';
 import type { LatLng } from '../types';
 
 // 'area' = tributary/drainage polygons ("X Lake and tributaries"), which apply to any water inside them.
@@ -34,6 +35,7 @@ export interface OfflineData {
   osmLakes?: OsmLake[]; // OpenStreetMap lake outlines (absent in older saves)
   mpas?: { rings: Line[]; attrs: Attrs }[]; // Marine Protected Areas (absent in older saves)
   mussels?: { rings: Line[]; attrs: Attrs }[]; // quagga/zebra mussel-infested waters (absent in older saves)
+  fishRanges?: { rings: Line[]; attrs: Attrs }[]; // game fish range watersheds (absent in older saves)
 }
 
 export interface SavedArea {
@@ -86,7 +88,7 @@ async function fetchRegs(b: BBox): Promise<{ features: RegFeature[]; rows: Attrs
 // area would give wrong answers offline.
 export async function fetchOffline(b: BBox): Promise<OfflineData> {
   const L = CONFIG.layers;
-  const [land, regs, lakes, bay, coastalBays, osmLakes, mpas, mussels] = await Promise.all([
+  const [land, regs, lakes, bay, coastalBays, osmLakes, mpas, mussels, fishRanges] = await Promise.all([
     arcFeatures(L.ownership.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0002', geometryPrecision: '5',
       outFields: 'Own_Level,Own_Group,Own_Agency' }, 10),
     fetchRegs(b),
@@ -97,7 +99,9 @@ export async function fetchOffline(b: BBox): Promise<OfflineData> {
     osmLakesIn(b),
     arcFeatures(L.mpa.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0001', geometryPrecision: '5',
       outFields: 'name,fullname,type,regulation_text,regulations_url' }),
-    arcFeatures(L.mussels.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0001', geometryPrecision: '5', outFields: 'Name,CName' })
+    arcFeatures(L.mussels.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0001', geometryPrecision: '5', outFields: 'Name,CName' }),
+    // Watersheds are tens of km², so a coarse outline is enough.
+    arcFeatures(L.fishRanges.url, { ...envelopeFor(b), where: '1=1', maxAllowableOffset: '0.0005', geometryPrecision: '4', outFields: SPECIES_FIELDS })
   ]);
   return {
     bbox: b, regFeatures: regs.features, regRows: regs.rows,
@@ -107,7 +111,8 @@ export async function fetchOffline(b: BBox): Promise<OfflineData> {
     coastalBays: coastalBays.map(f => ({ name: String(f.attributes.Estuary_Name), rings: paths(f.geometry) })),
     osmLakes,
     mpas: mpas.map(f => ({ rings: paths(f.geometry), attrs: f.attributes })),
-    mussels: mussels.map(f => ({ rings: paths(f.geometry), attrs: f.attributes }))
+    mussels: mussels.map(f => ({ rings: paths(f.geometry), attrs: f.attributes })),
+    fishRanges: fishRanges.map(f => ({ rings: paths(f.geometry), attrs: f.attributes }))
   };
 }
 
@@ -141,6 +146,7 @@ export function offlineRaw(o: OfflineData, point: LatLng, zoom: number): Raw {
     osmLake: (o.osmLakes ?? []).filter(l => pointInPolygon(at, l.rings)).slice(0, 1).map(l => ({ NAME: l.name })),
     // Older saves have no mussel waters: undefined, so the check leaves the note out rather than reporting an error.
     mussels: o.mussels?.filter(m => pointInPolygon(at, m.rings) || nearestBetween([[at]], m.rings, proj, MUSSEL_M) !== null).map(m => m.attrs),
+    fishRanges: o.fishRanges?.filter(w => pointInPolygon(at, w.rings)).map(w => w.attrs),
     coastalBay: (o.coastalBays ?? []).filter(c => pointInPolygon(at, c.rings)).map(c => ({ Estuary_Name: c.name })),
     nearBay: (o.bay ?? []).filter(r => nearestBetween([[at]], r, proj, BAY_POND_M) !== null || pointInPolygon(at, r)).map(() => ({})),
     // No county service offline: off the state's land outline with no land parcel is open water (as online, where

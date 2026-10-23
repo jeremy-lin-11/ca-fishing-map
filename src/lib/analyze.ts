@@ -10,6 +10,7 @@ import { districtScope, summarizeGroup, troutRule, type RegSummary, type TroutRu
 import { estimatePressure, fetchPressure, type Pressure, type PressureRaw } from './pressure';
 import { osmLakeAt } from './osmLakes';
 import { lastAndNext, type Planting } from './plantings';
+import { SPECIES_FIELDS, speciesAt, type Species } from './species';
 
 export interface Analysis {
   point: LatLng;
@@ -24,6 +25,7 @@ export interface Analysis {
   trout: TroutRule | null;  // today's season and trout limit; null for ocean
   pressure: Pressure | null; // estimated fishing pressure; null offline
   plantings: Plantings | null; // CDFW stocking of the water at the point; null if not stocked, or offline
+  species: Species | null;     // game fish whose range includes the watershed; null for ocean or no data
   errors: string[];
 }
 
@@ -37,6 +39,7 @@ export interface Raw {
   coastalBay: Attrs[] | null; // other coastal bays and harbors (Estuary_Name)
   osmLake?: Attrs[] | null;   // OpenStreetMap lake at the point (NAME); absent in older offline saves
   mussels?: Attrs[] | null;   // quagga/zebra mussel-infested waters within MUSSEL_M (Name, CName); absent in older saves
+  fishRanges?: Attrs[] | null; // CDFW game fish range watersheds at the point (lib/species.ts); absent in older saves
   geo: any; dem: number | null; rca: Attrs[] | null; contours: Attrs[] | null; regs: RegLookup;
   pressure?: PressureRaw; // absent offline
 }
@@ -70,7 +73,7 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
   const tol = clickRadius(point, zoom);
   const { layers: L, depth: D } = CONFIG;
   const salton = D.lakeContours[0];
-  const [own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, mussels, geo, dem, rca, contours, regs, pressure] = await Promise.all([
+  const [own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, mussels, fishRanges, geo, dem, rca, contours, regs, pressure] = await Promise.all([
     settle(queryPoint(L.ownership.url, point, { outFields: 'Own_Level,Own_Group,Own_Agency' })),
     settle(queryPoint(L.waterBodies.url, point, { outFields: 'NAME,FTYPE,FCODE_DESC' })),
     settle(osmLakeAt(point)),
@@ -81,6 +84,7 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
     settle(queryPoint(L.sfBay.url, point, { where: L.sfBay.where, meters: BAY_POND_M, outFields: 'feat_desc' })),
     settle(queryPoint(L.coastalBays.url, point, { where: L.coastalBays.where, outFields: 'Estuary_Name' })),
     settle(queryPoint(L.mussels.url, point, { meters: MUSSEL_M, outFields: 'Name,CName' })),
+    settle(queryPoint(L.fishRanges.url, point, { outFields: SPECIES_FIELDS })),
     countyAt(point),
     sampleDem(D.dem, point),
     settle(queryPoint(D.rca, point, { meters: 2000, outFields: 'feat_desc' })),
@@ -88,7 +92,7 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
     lookupRegs(CONFIG.regs, point, tol).catch((): RegLookup => ({ hits: [], rowsByCode: new Map(), failed: ['freshwater regulations'] })),
     fetchPressure(point, tol)
   ]);
-  return { own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, mussels, geo, dem, rca, contours, regs, pressure };
+  return { own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, mussels, fishRanges, geo, dem, rca, contours, regs, pressure };
 }
 
 // Ownership (CAL FIRE) decides the land category; Esri federal/parks layers supply unit names when they agree.
@@ -147,6 +151,7 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
   if (!d.bay || !d.nearBay) errors.push('San Francisco Bay boundary');
   if (!d.coastalBay) errors.push('coastal bays');
   if (d.mussels === null) errors.push('mussel-infested waters');
+  if (d.fishRanges === null) errors.push('game fish ranges');
   const lands = landUnits(d.own, fed, parks);
   const land = lands[0];
   const pond = (d.waterBody ?? []).find(w => pondType(w));
@@ -232,6 +237,7 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
   const pressure = d.pressure ? estimatePressure(d.pressure, { catchAndRelease: trout?.daily === 0, today }) : null;
   return {
     point, water, lands, landBadge, verdict, notes, regs, trout, pressure, errors, plantings: plantingsAt(d.pressure, today),
+    species: water === 'ocean' ? null : speciesAt(d.fishRanges ?? []),
     county: d.geo?.address?.county || d.geo?.address?.city || '',
     depth: depthNotes(point, water, d)
   };

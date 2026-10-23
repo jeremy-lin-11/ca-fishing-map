@@ -39,6 +39,7 @@ Tap anywhere in California and you get one clear verdict (yes / check first / no
   and whether only artificial lures, flies or barbless hooks are allowed (quoted from the regulation).
 - **Warnings** where the rules can't be applied automatically. For example, rules for streams where salmon and
   steelhead run, or a regulation the tool couldn't match to the water with confidence.
+- **Game fish in the watershed** (CDFW ranges by watershed: what may live nearby, not a survey of this water).
 - **Fish plantings and invasive mussels.** When CDFW last stocked the water and when the next planting is scheduled,
   and a clean-drain-dry reminder at quagga/zebra mussel-infested waters.
 - **Estimated fishing pressure** (low / moderate / high) where fishing is allowed. It's based on road access, how many
@@ -140,6 +141,7 @@ lines; lake, tributary-area and district polygons) plus the text table. Each que
 | MPA | CDFW | no-take or limited-take marine reserves |
 | regulations | CDFW RFRService map layers + text table | special regulations at the point (`regdata.ts`) |
 | mussel waters | CDFW BIOS ds2801 quagga/zebra mussel infested waters (within 200 m) | clean-drain-dry note |
+| game fish ranges | CDFW RFRService GameFishRanges (HUC12 watersheds, 0/1 per species) | species card (`species.ts`) |
 | SF Bay District, coastal bays | CDFW, PMEP (CDFW BIOS) | bay water: ocean rules, not the freshwater booklet |
 | county | US Census counties | display, offshore detection |
 | elevation/depth | NOAA NCEI DEM | ocean depth, lake surface elevation |
@@ -267,6 +269,7 @@ src/
     analyze.ts         fishing check: fetchPoint (I/O) → interpret (pure)
     regdata.ts         CDFW regulation lookup, parsing, section-number check, freshness
     plantings.ts       CDFW planting log: last/next planting, map sites
+    species.ts         CDFW game fish ranges per watershed
     season.ts          season text → date ranges
     rules.ts           open/closed and trout limit for a water on given dates
     land.ts            CAL FIRE ownership → land type; SQL per land type

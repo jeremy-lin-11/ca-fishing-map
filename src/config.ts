@@ -48,6 +48,10 @@ export const CONFIG = {
       label: 'Marine Protected Areas',
       url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/ArcGIS/rest/services/California_Marine_Protected_Areas/FeatureServer/1'
     },
+    // CDFW game fish ranges per HUC12 watershed (RFRService layer 4; Name + one 0/1 field per species, lib/species.ts).
+    fishRanges: {
+      url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/RFRService/FeatureServer/4'
+    },
     // CDFW quagga and zebra mussel infested waters (BIOS ds2801; fields: Name, CName, County).
     mussels: {
       url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/biosds2801_fpu/FeatureServer/0'

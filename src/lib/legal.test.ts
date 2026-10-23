@@ -25,6 +25,12 @@ describe('legal answers', () => {
     expect(interpret(p, 'lake', raw([], {}, { mussels: null }), monJul).errors).toContain('mussel-infested waters');
     expect(interpret(p, 'lake', raw([], {}), monJul).errors).toEqual([]); // older offline saves have no mussel data
   });
+  it('game fish ranges: shown for inland water, not ocean; a failed lookup is reported', () => {
+    const fishRanges = [{ Name: 'Navarro River', RainbowTrout: 1 }];
+    expect(interpret(p, 'stream', raw([], {}, { fishRanges }), monJul).species?.groups).toEqual([{ group: 'Trout, salmon & whitefish', names: ['Rainbow trout'] }]);
+    expect(interpret(p, 'ocean', raw([], {}, { fishRanges }), monJul).species).toBeNull();
+    expect(interpret(p, 'stream', raw([], {}, { fishRanges: null }), monJul).errors).toContain('game fish ranges');
+  });
   it('a non-trout section on a special layer (§8.00 low-flow) does not replace a closed district rule', () => {
     const a = interpret(p, 'stream', raw([{ kind: STREAMS, desc: 'Low flow', code: '8.00(b)(2)' }, closedDistrict],
       { ...districtRows, '8.00(b)': 'Low-flow restrictions', '8.00(b)(2)': 'Mendocino County streams are closed when flows are low.' }), monJan);

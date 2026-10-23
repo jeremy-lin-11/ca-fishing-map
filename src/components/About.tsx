@@ -8,7 +8,7 @@ const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.
 const isInstalled = () => window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
 
 const SOURCES: [string, string, string][] = [
-  ['Fishing regulations, MPAs, rockfish depth lines, Salton Sea depth, mussel-infested waters', 'California Department of Fish and Wildlife (CDFW) public GIS data', 'https://wildlife.ca.gov/Data/GIS'],
+  ['Fishing regulations, game fish ranges, MPAs, rockfish depth lines, Salton Sea depth, mussel-infested waters', 'California Department of Fish and Wildlife (CDFW) public GIS data', 'https://wildlife.ca.gov/Data/GIS'],
   ['Fish plantings', 'CDFW hatchery planting log (as in the CDFW Fishing Guide)', 'https://wildlife.ca.gov/Fishing/Guide'],
   ['Bays and harbors', 'Pacific Marine and Estuarine Fish Habitat Partnership, estuary extent (via CDFW BIOS)', 'https://www.arcgis.com/home/item.html?id=c0b97243451f46db84b51d044424b51a'],
   ['Fishing pressure signals', 'Caltrans public roads, CDFW stocked waters and planting log, National Wilderness Preservation System, CA Coastal Commission access points, USDA Forest Service recreation sites', 'https://wildlife.ca.gov/Fishing/Inland/Fish-Planting'],

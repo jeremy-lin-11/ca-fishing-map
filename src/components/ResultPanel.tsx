@@ -100,6 +100,18 @@ function PlantingsCard({ p }: { p: NonNullable<Analysis['plantings']> }) {
   );
 }
 
+function SpeciesCard({ s }: { s: NonNullable<Analysis['species']> }) {
+  return (
+    <Fold title="Game fish in this watershed">
+      {s.groups.length
+        ? <ul>{s.groups.map(g => <li key={g.group}><b>{g.group}:</b> {g.names.join(', ')}</li>)}</ul>
+        : <p>No game fish ranges listed for this watershed.</p>}
+      <p className="hint">CDFW game fish ranges for the {s.watersheds.join(' / ') || 'local'} watershed. A species listed here has a range
+        that includes the watershed, which doesn't mean it lives in this lake or stream. Salmon, steelhead and golden trout aren't covered.</p>
+    </Fold>
+  );
+}
+
 function Row({ row }: { row: ParsedRow }) {
   if (row.type === 'text') return <li>{row.heading && <b>{row.heading} </b>}{row.body}</li>;
   return (
@@ -178,6 +190,7 @@ export default function ResultPanel({ r }: { r: Analysis }) {
       </Card>
     )}
     {r.plantings && <PlantingsCard p={r.plantings} />}
+    {r.species && <SpeciesCard s={r.species} />}
     {r.pressure && r.verdict.status !== 'no' && r.trout?.open !== false && <PressureCard p={r.pressure} />}
     <Fold title="Depth"><ul>{r.depth.map((n, i) => <NoteItem key={i} n={n} />)}</ul></Fold>
     {r.regs && <RegCards regs={r.regs} />}

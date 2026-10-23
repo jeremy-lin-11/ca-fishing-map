@@ -44,12 +44,15 @@ describe('offline areas', () => {
       bbox: { south: 37.5, west: -122.1, north: 37.6, east: -121.9 }, land: [], lakes: [{ rings: [ring], attrs: { NAME: 'Quarry Pond 3', FTYPE: 'Lake/Pond' } }],
       regFeatures: [{ kind: 'lake', code: '5.15(b)(3)(A)', desc: 'Alameda Creek Quarry Ponds', lines: [ring] }],
       regRows: [{ code: '5.15(b)(3)', verbatim: '[start_row][row]Alameda County:|_[row][row]Alameda Creek Quarry Ponds.|5[row][end_row]' }],
-      mussels: [{ rings: [ring], attrs: { Name: 'Quarry Ponds', CName: 'Quagga mussel' } }]
+      mussels: [{ rings: [ring], attrs: { Name: 'Quarry Ponds', CName: 'Quagga mussel' } }],
+      fishRanges: [{ rings: [[[-122.1, 37.5], [-121.9, 37.5], [-121.9, 37.6], [-122.1, 37.6], [-122.1, 37.5]]], attrs: { Name: 'Alameda Creek', ChannelCatfish: 1 } }]
     };
     const on = { lat: 37.572, lng: -121.995 }, shore = { lat: 37.5765, lng: -121.995 }, away = { lat: 37.59, lng: -121.995 };
     const a = interpret(on, 'auto', offlineRaw(structuredClone(o), on, 14));
     expect(a.regs?.special.map(g => [g.code, g.mapCode])).toEqual([['5.15(b)(3)', '5.15(b)(3)(A)']]);
     expect(a.trout?.note).not.toMatch(/couldn't be loaded/);
+    expect(a.species).toEqual({ watersheds: ['Alameda Creek'], groups: [{ group: 'Catfish', names: ['Channel catfish'] }] });
+    expect(interpret(on, 'auto', offlineRaw({ ...o, fishRanges: undefined }, on, 14)).species).toBeNull(); // older save
     const mussel = (q: { lat: number; lng: number }, d = o) => interpret(q, 'auto', offlineRaw(d, q, 14)).notes.some(n => n.strong === 'Quarry Ponds');
     expect([mussel(on), mussel(shore), mussel(away), mussel(on, { ...o, mussels: undefined })]).toEqual([true, true, false, false]);
   });
