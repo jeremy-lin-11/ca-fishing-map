@@ -38,6 +38,21 @@ describe('offline areas', () => {
     const outside = interpret({ lat: 37.55, lng: -119.05 }, 'auto', offlineRaw(o, { lat: 37.55, lng: -119.05 }, 14), new Date(2026, 6, 4));
     expect(outside.regs?.special).toEqual([]);
   });
+  it('current-markup rows, map codes below the text, and mussel waters (on the water and on the shore)', () => {
+    const ring = [[-122.0, 37.57], [-121.99, 37.57], [-121.99, 37.575], [-122.0, 37.575], [-122.0, 37.57]] as [number, number][];
+    const o: OfflineData = {
+      bbox: { south: 37.5, west: -122.1, north: 37.6, east: -121.9 }, land: [], lakes: [{ rings: [ring], attrs: { NAME: 'Quarry Pond 3', FTYPE: 'Lake/Pond' } }],
+      regFeatures: [{ kind: 'lake', code: '5.15(b)(3)(A)', desc: 'Alameda Creek Quarry Ponds', lines: [ring] }],
+      regRows: [{ code: '5.15(b)(3)', verbatim: '[start_row][row]Alameda County:|_[row][row]Alameda Creek Quarry Ponds.|5[row][end_row]' }],
+      mussels: [{ rings: [ring], attrs: { Name: 'Quarry Ponds', CName: 'Quagga mussel' } }]
+    };
+    const on = { lat: 37.572, lng: -121.995 }, shore = { lat: 37.5765, lng: -121.995 }, away = { lat: 37.59, lng: -121.995 };
+    const a = interpret(on, 'auto', offlineRaw(structuredClone(o), on, 14));
+    expect(a.regs?.special.map(g => [g.code, g.mapCode])).toEqual([['5.15(b)(3)', '5.15(b)(3)(A)']]);
+    expect(a.trout?.note).not.toMatch(/couldn't be loaded/);
+    const mussel = (q: { lat: number; lng: number }, d = o) => interpret(q, 'auto', offlineRaw(d, q, 14)).notes.some(n => n.strong === 'Quarry Ponds');
+    expect([mussel(on), mussel(shore), mussel(away), mussel(on, { ...o, mussels: undefined })]).toEqual([true, true, false, false]);
+  });
   it('saved San Francisco Bay outline: bay water, and salt ponds within 1.5 km of it', () => {
     const bayRing = [[-122.2, 37.45], [-122.0, 37.45], [-122.0, 37.6], [-122.2, 37.6], [-122.2, 37.45]] as [number, number][];
     const pondRing = [[-122.045, 37.43], [-122.035, 37.43], [-122.035, 37.44], [-122.045, 37.44], [-122.045, 37.43]] as [number, number][];

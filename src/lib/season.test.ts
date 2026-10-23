@@ -43,5 +43,8 @@ describe('seasons', () => {
     expect(isOpenOn(parseSeason('Sat. preceding Memorial through the last day in Feb.'), d(2026, 5, 23))).toBe(true);
     expect(isOpenOn(parseSeason('Fourth Sat. in in May through Jul. 15.'), d(2026, 5, 23))).toBe(true);
     expect(parseSeason('From Parker Lake to the confluence with Rush Creek.')).toBeNull();
+    const quota = parseSeason('Fall-run Quota: 552 Chinook Salmon Aug. 15-Dec 31, 2026. Once the adult salmon quota has been met…');
+    expect(isOpenOn(quota, d(2026, 10, 23))).toBe(true);
+    expect(isOpenOn(quota, d(2026, 8, 1))).toBe(false);
   });
 });

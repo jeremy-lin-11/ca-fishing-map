@@ -19,6 +19,12 @@ const closedDistrict = { kind: DISTRICTS, desc: 'All North Coast District stream
 const districtRows = { '7.00(c)': HEADER, '7.00(c)(1)': row('All streams', 'Closed to all fishing all year.', '') };
 
 describe('legal answers', () => {
+  it('a mussel-infested water gets the clean-drain-dry note; a failed lookup is reported', () => {
+    const a = interpret(p, 'lake', raw([], {}, { mussels: [{ Name: 'Lake Piru', CName: 'Quagga mussel' }] }), monJul);
+    expect(a.notes.find(n => n.strong === 'Lake Piru')?.text).toMatch(/quagga mussel-infested.*Clean, drain and dry/);
+    expect(interpret(p, 'lake', raw([], {}, { mussels: null }), monJul).errors).toContain('mussel-infested waters');
+    expect(interpret(p, 'lake', raw([], {}), monJul).errors).toEqual([]); // older offline saves have no mussel data
+  });
   it('a non-trout section on a special layer (§8.00 low-flow) does not replace a closed district rule', () => {
     const a = interpret(p, 'stream', raw([{ kind: STREAMS, desc: 'Low flow', code: '8.00(b)(2)' }, closedDistrict],
       { ...districtRows, '8.00(b)': 'Low-flow restrictions', '8.00(b)(2)': 'Mendocino County streams are closed when flows are low.' }), monJan);

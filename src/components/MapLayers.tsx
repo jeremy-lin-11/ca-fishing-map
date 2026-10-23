@@ -3,6 +3,7 @@ import { OVERLAYS, type OverlayId } from '../config';
 import type { AgencyKey } from '../regs';
 import { ALL_LAND } from '../lib/land';
 import LandTypePicker from './LandTypePicker';
+import { PLANT_COLORS } from './PlantingsLayer';
 
 export type Basemap = 'topo' | 'imagery' | 'relief';
 export const BASEMAP_LABELS: Record<Basemap, string> = {
@@ -14,6 +15,10 @@ function Legend() {
     <div id="legend">
       <span><i style={{ background: '#0096c7' }} />MPA</span>
       <span><i style={{ background: '#e76f00' }} />Special-regulation water</span>
+      <span><i style={{ background: PLANT_COLORS.upcoming, borderRadius: '50%' }} />Fish planting this week or scheduled</span>
+      <span><i style={{ background: PLANT_COLORS.recent, borderRadius: '50%' }} />Planted in the last 6 weeks</span>
+      <span><i style={{ background: PLANT_COLORS.older, borderRadius: '50%' }} />Planted earlier this year</span>
+      <span><i style={{ background: '#8d5524' }} />Quagga/zebra mussel water</span>
       <span><i style={{ background: '#c1121f' }} />RCA depth line</span>
       <span><i style={{ border: '2px dashed #6e40c9', background: 'transparent' }} />Saved offline area</span>
     </div>

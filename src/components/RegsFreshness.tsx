@@ -9,10 +9,10 @@ export default function RegsFreshness() {
   useEffect(() => { regsFreshness(CONFIG.regs).then(setF).catch(() => setF(null)); }, []);
   if (!f) return <p className="hint">Source: CDFW freshwater regulation dataset. Verify in the current booklet before fishing.</p>;
   const updated = f.updated ? f.updated.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'unknown date';
-  const cites = f.cites.length ? `text from the ${f.cites.join(' / ')} booklet` : 'booklet year not stated';
+  const text = f.cites.length ? `text from the ${f.cites.join(' / ')} booklet` : 'Title 14 regulation text';
   return (
     <p className={f.stale ? 'err' : 'hint'}>
-      Source: CDFW regulation dataset (updated {updated}; {cites}).{' '}
+      Source: CDFW regulation dataset ({text}, updated {updated}).{' '}
       {f.stale
         ? <>The current booklet is <b>{f.current}</b>, so some seasons and limits may have changed. Check the <a target="_blank" rel="noopener" href={LINKS.inland}>current regulations</a>.</>
         : <>Verify in the current ({f.current}) booklet before fishing.</>}

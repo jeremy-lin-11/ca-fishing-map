@@ -8,7 +8,8 @@ const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.
 const isInstalled = () => window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
 
 const SOURCES: [string, string, string][] = [
-  ['Fishing regulations, MPAs, rockfish depth lines, Salton Sea depth', 'California Department of Fish and Wildlife (CDFW) public GIS data', 'https://wildlife.ca.gov/Data/GIS'],
+  ['Fishing regulations, MPAs, rockfish depth lines, Salton Sea depth, mussel-infested waters', 'California Department of Fish and Wildlife (CDFW) public GIS data', 'https://wildlife.ca.gov/Data/GIS'],
+  ['Fish plantings', 'CDFW hatchery planting log (as in the CDFW Fishing Guide)', 'https://wildlife.ca.gov/Fishing/Guide'],
   ['Bays and harbors', 'Pacific Marine and Estuarine Fish Habitat Partnership, estuary extent (via CDFW BIOS)', 'https://www.arcgis.com/home/item.html?id=c0b97243451f46db84b51d044424b51a'],
   ['Fishing pressure signals', 'Caltrans public roads, CDFW stocked waters and planting log, National Wilderness Preservation System, CA Coastal Commission access points, USDA Forest Service recreation sites', 'https://wildlife.ca.gov/Fishing/Inland/Fish-Planting'],
   ['Land ownership', 'CAL FIRE, California Land Ownership', 'https://www.fire.ca.gov/what-we-do/fire-resource-assessment-program'],
@@ -22,8 +23,8 @@ const SOURCES: [string, string, string][] = [
 function Disclaimer() {
   return <>
     <p><b>This is not an official CDFW tool and isn't affiliated with any agency.</b> It combines public data to help you
-      check where fishing is allowed, but that data can be out of date, incomplete or wrong. In particular, the regulation text
-      comes from a CDFW dataset copied from an older printed booklet.</p>
+      check where fishing is allowed, but that data can be out of date, incomplete or wrong, and some regulations can't be
+      read automatically.</p>
     <p>You are responsible for knowing and following the current regulations, land access rules, closures and permit
       requirements. Always check the <a target="_blank" rel="noopener" href={LINKS.inland}>current freshwater</a> and{' '}
       <a target="_blank" rel="noopener" href={LINKS.ocean}>ocean</a> regulations before you fish. Provided as is, without warranty.</p>

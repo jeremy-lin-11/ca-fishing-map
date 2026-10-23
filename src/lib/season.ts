@@ -67,8 +67,8 @@ export type Season =
 // range regex's groups 1 and 2 are the two endpoints.
 const Mn = M.replace('(', '(?:'), WDn = WD.replace('(', '(?:');
 const ENDPOINT_TEXT = `(?:the\\s+)?(?:(?:first|second|third|fourth|last)\\s+(?:${WDn}|day)\\s+(?:in|of)\\s+${Mn}|${WDn}\\s+(?:preceding|before|following|after)\\s+(?:the\\s+)?(?:memorial(?: day)?|labor day|(?:first|second|third|fourth|last)\\s+${WDn}\\s+in\\s+${Mn}|${Mn}\\s*\\d{1,2})|${Mn}\\s*\\d{1,2}|memorial day|labor day)`;
-// "A through B", or "A to B" (both sides must still be date phrases, so "from Parker Lake to …" can't match).
-const RANGE = new RegExp(`(${ENDPOINT_TEXT})\\s*(?:,\\s*\\d{4}\\s*)?(?:through|to)\\s+(${ENDPOINT_TEXT})`, 'gi');
+// "A through B", "A to B" or "A-B" (both sides must still be date phrases, so "from Parker Lake to …" can't match).
+const RANGE = new RegExp(`(${ENDPOINT_TEXT})\\s*(?:,\\s*\\d{4}\\s*)?(?:(?:through|to)\\s+|[-–]\\s*)(${ENDPOINT_TEXT})`, 'gi');
 
 // Gear rules inside the season column: "Only artificial lures with barbless hooks may be used[ from A through B]."
 // and "Bait may be used from A through B." They aren't part of the season (their dates would otherwise be read as

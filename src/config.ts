@@ -47,6 +47,10 @@ export const CONFIG = {
     mpa: {
       label: 'Marine Protected Areas',
       url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/ArcGIS/rest/services/California_Marine_Protected_Areas/FeatureServer/1'
+    },
+    // CDFW quagga and zebra mussel infested waters (BIOS ds2801; fields: Name, CName, County).
+    mussels: {
+      url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/biosds2801_fpu/FeatureServer/0'
     }
   },
   // County for the fishing check (Esri Living Atlas, US Census counties). Whether a point is in California is
@@ -59,10 +63,11 @@ export const CONFIG = {
   // Where a problem report goes when sending fails (e.g. an ad blocker): a pre-filled GitHub issue (public).
   issuesUrl: 'https://github.com/jeremy-lin-11/ca-fishing-map/issues/new',
 
-  // CDFW freshwater regulations (official regulation viewer data). Layer ids inside this service.
+  // CDFW freshwater regulations (RFRService, the data behind CDFW's regulations map; Title 14 text, kept current).
+  // Layer ids inside this service: stream lines; lake, tributary-area and district polygons (by `category`); text.
   regs: {
-    url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/ArcGIS/rest/services/regLinkFishing/FeatureServer',
-    layers: { districts: 0, lakes: 1, streams: 2, tributary: 3, table: 8 }
+    url: 'https://services2.arcgis.com/Uq9r85Potqm3MfRV/arcgis/rest/services/RFRService/FeatureServer',
+    layers: { lines: 0, polygons: 1, table: 2 }
   },
 
   // Estimated fishing pressure (lib/pressure.ts): proxies for how many people fish a spot.
@@ -114,11 +119,13 @@ export const BASEMAPS = {
   noaaRelief: 'https://gis.ngdc.noaa.gov/arcgis/rest/services/DEM_mosaics/DEM_global_mosaic_hillshade/ImageServer'
 };
 
-export type OverlayId = 'land' | 'regwaters' | 'mpa' | 'depth' | 'rca';
+export type OverlayId = 'land' | 'regwaters' | 'mpa' | 'plantings' | 'mussels' | 'depth' | 'rca';
 export const OVERLAYS: { id: OverlayId; label: string; defaultOn: boolean }[] = [
   { id: 'land', label: 'Public land (federal, state, local, utility)', defaultOn: true },
   { id: 'regwaters', label: 'Waters with special regulations', defaultOn: true },
   { id: 'mpa', label: 'Marine Protected Areas', defaultOn: true },
+  { id: 'plantings', label: 'CDFW fish plantings (past year and scheduled)', defaultOn: true },
+  { id: 'mussels', label: 'Quagga/zebra mussel infested waters', defaultOn: true },
   { id: 'depth', label: 'Depth charts (ocean contours; Tahoe & Salton Sea)', defaultOn: true },
   { id: 'rca', label: 'Rockfish depth limits (RCA lines)', defaultOn: false }
 ];

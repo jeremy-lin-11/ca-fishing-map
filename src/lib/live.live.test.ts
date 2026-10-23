@@ -6,6 +6,7 @@ import { setHttp } from './http';
 import { analyzePoint, fetchPoint, interpret, type Analysis } from './analyze';
 import { fetchOffline, offlineRaw } from './offline';
 import { regsFreshness } from './regdata';
+import { fetchPlantSites } from './plantings';
 import { CONFIG } from '../config';
 import { readFileSync } from 'node:fs';
 
@@ -115,11 +116,44 @@ describe('live services', () => {
       expect(offline.regs?.special.map(g => g.code).sort()).toEqual(online.regs?.special.map(g => g.code).sort());
     }
   }, 180_000);
-  it('regulation freshness: dataset date and cited booklet', async () => {
+  it('regulation freshness: dataset edit date (Title 14 text cites no booklet)', async () => {
     const f = await regsFreshness(CONFIG.regs, new Date(2026, 9, 14));
     console.log('freshness', JSON.stringify(f));
     expect(f.updated).not.toBeNull();
-    expect(f.cites.length).toBeGreaterThan(0);
     expect(f.current).toBe('2026–2027');
+  });
+  it('Twin Lakes (Mammoth): the map points at the right entry now (the old layer said Twelvemile Creek)', async () => {
+    const a = await at(37.61778, -119.00792);
+    const g = a.regs!.special.find(x => x.code === '7.50(b)(158)')!;
+    expect(g).toMatchObject({ mapCode: undefined, unverified: undefined });
+    expect(a.trout).toMatchObject({ source: '§7.50(b)(158)', daily: 5 });
+  });
+  it('Klamath below I-5: the 2026 quota reach, read from the hyphenated season', async () => {
+    const p = { lat: 41.69253, lng: -123.44538 };
+    const a = interpret(p, 'auto', await fetchPoint(p, 13), new Date(2026, 9, 23));
+    expect(a.regs!.special.map(g => g.code)).toContain('7.40(b)(50)(E)2.d');
+    expect(a.regs!.special.every(g => !g.unverified)).toBe(true);
+    expect(a.trout).toMatchObject({ open: true, daily: 2 });
+  });
+  it('map codes written differently from the text: Van Duzen (B)(1) -> (B)1, Alameda quarry ponds -> county row', async () => {
+    const vd = await at(40.48011, -123.96982);
+    expect(vd.regs!.special.find(g => g.mapCode === '7.40(b)(40)(B)(1)')?.code).toBe('7.40(b)(40)(B)1');
+    const q = await at(37.57083, -121.99436);
+    expect(q.regs!.special.find(g => g.mapCode === '5.15(b)(3)(A)')?.code).toBe('5.15(b)(3)');
+    expect(q.trout?.note).not.toMatch(/couldn't be loaded/);
+  });
+  it('mussel-infested water: clean-drain-dry note', async () => {
+    const a = await at(34.48169, -118.75297); // Lake Piru
+    expect(a.notes.find(n => n.strong === 'Lake Piru')?.text).toMatch(/quagga mussel-infested/);
+    expect((await at(37.5934, -118.7364)).notes.some(n => /mussel-infested/.test(n.text ?? ''))).toBe(false); // Crowley
+  });
+  it('fish plantings: map sites and the stocked water at a point', async () => {
+    const sites = await fetchPlantSites();
+    expect(sites.length).toBeGreaterThan(200);
+    expect(sites.every(s => s.lat > 32 && s.lat < 42.1 && s.lng < -114)).toBe(true);
+    const packer = sites.find(s => /Packer Lake/.test(s.water))!;
+    const a = await at(packer.lat, packer.lng);
+    console.log('packer', JSON.stringify(a.plantings));
+    expect(a.plantings?.last ?? a.plantings?.next).toBeTruthy();
   });
 });

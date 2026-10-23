@@ -9,7 +9,8 @@ export const LINKS = {
   inland: 'https://wildlife.ca.gov/Fishing/Inland/Regulations',
   ocean: 'https://wildlife.ca.gov/Fishing/Ocean/Regulations',
   mpa: 'https://wildlife.ca.gov/Conservation/Marine/MPAs',
-  license: 'https://wildlife.ca.gov/Licensing/Fishing'
+  license: 'https://wildlife.ca.gov/Licensing/Fishing',
+  planting: 'https://wildlife.ca.gov/Fishing/Inland/Fish-Planting'
 };
 
 // Agency key -> access + fishing rule for land managed by that agency.

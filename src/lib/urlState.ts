@@ -18,7 +18,7 @@ export interface UrlState {
 }
 
 const WATERS: WaterSelection[] = ['auto', 'stream', 'lake', 'ocean'];
-const OVERLAY_IDS: OverlayId[] = ['land', 'regwaters', 'mpa', 'depth', 'rca'];
+const OVERLAY_IDS: OverlayId[] = ['land', 'regwaters', 'mpa', 'plantings', 'mussels', 'depth', 'rca'];
 const KEYS = new Set<string>(ALL_LAND);
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x));
 const landList = (s: string | null) => (s === null ? undefined : s === '' ? [] : s.split('.').filter(k => KEYS.has(k)) as AgencyKey[]);

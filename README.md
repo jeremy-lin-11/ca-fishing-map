@@ -20,8 +20,8 @@ several things yourself:
 - Checking whether today falls inside the season.
 - Separately working out whether the land you're standing on is public at all.
 
-CDFW does publish map data that links waters to booklet sections. But it isn't combined with land ownership,
-it doesn't tell you what applies on a given day, and its text was copied from an older printed booklet.
+CDFW does publish map data that links waters to their Title 14 regulation sections. But it isn't combined with land
+ownership, and it doesn't tell you what applies on a given day.
 
 This tool fills that gap for **freshwater**. It also checks land access, so it says both *whether the rules
 allow fishing* and *whether you're allowed to be there*.
@@ -39,13 +39,15 @@ Tap anywhere in California and you get one clear verdict (yes / check first / no
   and whether only artificial lures, flies or barbless hooks are allowed (quoted from the regulation).
 - **Warnings** where the rules can't be applied automatically. For example, rules for streams where salmon and
   steelhead run, or a regulation the tool couldn't match to the water with confidence.
+- **Fish plantings and invasive mussels.** When CDFW last stocked the water and when the next planting is scheduled,
+  and a clean-drain-dry reminder at quagga/zebra mussel-infested waters.
 - **Estimated fishing pressure** (low / moderate / high) where fishing is allowed. It's based on road access, how many
   people live nearby, CDFW trout stocking, nearby campgrounds and access points, and wilderness, and lists the
   reasons. It's an estimate, not a count of anglers.
 - **Ocean basics too:** Marine Protected Areas (no-take or limited-take zones), rockfish depth limits, and depth.
 
-The map can also show public land by owner, waters with special regulations, protected marine areas and depth
-charts. You can search for a town or lake, or jump to your current location.
+The map can also show public land by owner, waters with special regulations, protected marine areas, CDFW fish
+plantings (past year and scheduled), mussel-infested waters and depth charts. You can search for a town or lake, or jump to your current location.
 
 **Works without signal.** Before a trip, save a map area. Inside it, fishing checks still work with no
 connection. That's useful in the backcountry, where there usually isn't any.
@@ -60,8 +62,8 @@ your layers) to send to someone.
 ### Important
 
 This is **not an official CDFW tool**. It combines public government data, which can be out of date or wrong.
-In particular, the regulation text in CDFW's data comes from the 2021–2022 booklet, and the app warns you about
-this. Always confirm against the current CDFW
+The regulation text comes from CDFW's regulations dataset (Title 14 text, updated through Oct 2026); the app shows
+its date and warns if it predates the booklet in effect. Some rules can't be read automatically. Always confirm against the current CDFW
 [freshwater](https://wildlife.ca.gov/Fishing/Inland/Regulations) and
 [ocean](https://wildlife.ca.gov/Fishing/Ocean/Regulations) regulations before you fish.
 
@@ -127,8 +129,8 @@ public agency data services queried directly from the browser, plus a place-sear
 
 ### The fishing check
 
-`lib/analyze.ts`. One tap fires about a dozen parallel queries; the regulation lookup alone is four map layers plus
-the text table. Each query fails soft (`null`) and is listed under "Could not load":
+`lib/analyze.ts`. One tap fires about a dozen parallel queries; the regulation lookup is two map layers (stream
+lines; lake, tributary-area and district polygons) plus the text table. Each query fails soft (`null`) and is listed under "Could not load":
 
 | Query | Service | Used for |
 |---|---|---|
@@ -136,12 +138,13 @@ the text table. Each query fails soft (`null`) and is listed under "Could not lo
 | unit names | Esri federal lands / parks | "Inyo National Forest" instead of an agency name |
 | water body | Esri USA Detailed Water Bodies | lake vs. stream; lake surfaces are public water |
 | MPA | CDFW | no-take or limited-take marine reserves |
-| regulations | CDFW regulation viewer layers + text table | special regulations at the point (`regdata.ts`) |
+| regulations | CDFW RFRService map layers + text table | special regulations at the point (`regdata.ts`) |
+| mussel waters | CDFW BIOS ds2801 quagga/zebra mussel infested waters (within 200 m) | clean-drain-dry note |
 | SF Bay District, coastal bays | CDFW, PMEP (CDFW BIOS) | bay water: ocean rules, not the freshwater booklet |
 | county | US Census counties | display, offshore detection |
 | elevation/depth | NOAA NCEI DEM | ocean depth, lake surface elevation |
 | RCA lines, lake contours | CDFW | groundfish depth lines, Salton Sea depth |
-| pressure signals | Caltrans public roads, CDFW stocked waters + planting log, wilderness, Coastal Commission access, USFS recreation sites; town populations from `places.json` | estimated fishing pressure (`pressure.ts`) |
+| pressure signals | Caltrans public roads, CDFW stocked waters + planting log, wilderness, Coastal Commission access, USFS recreation sites; town populations from `places.json` | estimated fishing pressure (`pressure.ts`); the planting log also fills the plantings card (`plantings.ts`) |
 
 **Estimated pressure** (`lib/pressure.ts`): `fetchPressure` gathers the signals and `estimatePressure` scores them.
 Public roads (Caltrans) are counted within ¼, 1 and 3 miles. The total maps to low / moderate / high, and every signal that moved
@@ -213,7 +216,8 @@ The public project key is in `.env.production`.
 | Need | Source | Why this one |
 |---|---|---|
 | Land ownership | CAL FIRE California Land Ownership | California-only, every owner type incl. LADWP, districts, nonprofits, tribal |
-| Regulations | CDFW regulation viewer service (map layers + text table keyed by Title 14 section) | the official data behind CDFW's own viewer |
+| Regulations | CDFW RFRService (map layers + Title 14 text table keyed by section) | the data behind CDFW's regulations map, kept current (the older regLinkFishing service still has 2021–2022 booklet text and ~6% mis-numbered map features) |
+| Fish plantings | CDFW hatchery planting log (BIOS ds2897) | the same data as CDFW's Fishing Guide; a year back plus the next announced week |
 | Seasons & limits | parsed from that text (`season.ts`, `rules.ts`) | no structured season data exists |
 | Lakes | Esri USA Detailed Water Bodies (USGS NHD), then OpenStreetMap lake outlines (`public/lakes/`) | lake vs. stream at a point; NHD types tell salt evaporators and industrial ponds from lakes; OSM fills in reservoirs NHD maps only as unnamed "Inundation Area" (e.g. Stevens Creek Reservoir) and names unnamed lakes |
 | Bays | CDFW San Francisco Bay District (§27.00) polygon; PMEP coastal embayments (CDFW BIOS ds2792) | CDFW's inland district polygons also cover bays, so bay outlines decide where ocean rules apply |
@@ -223,10 +227,13 @@ The public project key is in `.env.production`.
 
 ### Correctness safeguards
 
-- **Section-number check** (`regdata.resolveHit`). About 6% of CDFW map features point at the wrong regulation
-  entry. For example, the "Twin Lakes (Mammoth)" polygon is numbered §7.50(b)(157), which is Twelvemile Creek. Each
-  hit's water name is matched against the text. Mismatches are re-pointed to the nearby entry that names the water,
-  or flagged unverified and never used for trout limits.
+- **Section-number check** (`regdata.resolveHit`). In CDFW's older regulation layers about 6% of map features
+  pointed at the wrong entry (the "Twin Lakes (Mammoth)" polygon said §7.50(b)(157), which is Twelvemile Creek). The
+  current layers fix that, but some map codes are written differently from the text ("(B)(1)" for "(B)1"), list
+  several sections, or sit one level below the text's row ("5.15(b)(3)(A)" for "5.15(b)(3)"). Each special-water hit's
+  name is still matched against the text (table rows' water names, or the opening words of prose rows). Mismatches
+  are re-pointed to the nearby entry that names the water, or flagged unverified and never used for trout limits.
+  A water whose section isn't in the text at all gets "check the booklet", not a default.
 - **Rule order** (`rules.troutRule`). The water's special regulation comes first, then district rules for all
   streams (§7.00), then the statewide default (§5.85: 5 daily, 10 in possession). With no possession limit stated,
   possession is one daily bag (§1.17).
@@ -237,8 +244,8 @@ The public project key is in `.env.production`.
   usually closed.
 - **District caveats.** §7.00 district polygons cover whole districts, so "anadromous waters" rules can't be
   applied per water. They are shown as caveats.
-- **Freshness** (`regdata.regsFreshness`). CDFW's dataset text cites the booklet it was copied from. The UI shows
-  that, the dataset's update date, and a warning when it predates the booklet in effect.
+- **Freshness** (`regdata.regsFreshness`). The UI shows the dataset's last edit date and warns when it predates
+  the booklet in effect (Mar 1). Text copied from a booklet (the older dataset) cites its year, which decides instead.
 
 ### Testing
 
@@ -259,6 +266,7 @@ src/
   lib/               plain TypeScript (no React/Leaflet)
     analyze.ts         fishing check: fetchPoint (I/O) → interpret (pure)
     regdata.ts         CDFW regulation lookup, parsing, section-number check, freshness
+    plantings.ts       CDFW planting log: last/next planting, map sites
     season.ts          season text → date ranges
     rules.ts           open/closed and trout limit for a water on given dates
     land.ts            CAL FIRE ownership → land type; SQL per land type

@@ -6,18 +6,18 @@ import { arcQuery, queryPoint, type Attrs } from './arcgis';
 import { haversine } from './geo';
 import { http } from './http';
 import { loadPlaces } from './places';
+import { fmtWeek, lastAndNext, RECENT_PLANT_DAYS } from './plantings';
 import type { LatLng } from '../types';
 
 export const ROAD_M = [400, 1600, 4800] as const; // ¼ mile, 1 mile, 3 miles
 const PEOPLE_M = 48280;                             // 30 miles
-const RECENT_PLANT_DAYS = 42;
 
 // Raw signals, each null if its service failed.
 export interface PressureRaw {
   roads: number[] | null;          // roads within each ROAD_M radius
   people: number | null;           // town population within PEOPLE_M
   stocked: Attrs[] | null;         // CDFW stocked waters at the point (StockingWaterID, last_yr_stkd)
-  plantings: Attrs[] | null;       // latest planting for those waters (WeekOfPlantStart, FishType)
+  plantings: Attrs[] | null;       // the past year's and next plantings for those waters (WeekOfPlantStart, FishType)
   wilderness: Attrs[] | null;
   coastalAccess: Attrs[] | null;   // within 400 m
   sites: Attrs[] | null;           // Forest Service developed sites within 800 m
@@ -59,7 +59,7 @@ export async function fetchPressure(p: LatLng, tol: number): Promise<PressureRaw
     if (!st) return null;
     if (!ids.length) return [];
     return settle(arcQuery(P.plantings, { where: `StockingWaterID IN (${ids.join(',')})`, outFields: 'WaterName,WeekOfPlantStart,FishType',
-      orderByFields: 'WeekOfPlantStart DESC', resultRecordCount: '1' }));
+      orderByFields: 'WeekOfPlantStart DESC', resultRecordCount: '100' }));
   });
   const [roads, people, stocked, plantings, wilderness, coastalAccess, sites] = await Promise.all([
     settle(roadCounts(p)), settle(peopleNear(p)), stockedP, plantingsP,
@@ -71,7 +71,6 @@ export async function fetchPressure(p: LatLng, tol: number): Promise<PressureRaw
 }
 
 const fmtPeople = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} million` : n >= 1e4 ? `${Math.round(n / 1e3)},000` : n.toLocaleString('en-US'));
-const fmtWeek = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 export function estimatePressure(r: PressureRaw, o: { catchAndRelease: boolean; today: Date }): Pressure {
   const reasons: Pressure['reasons'] = [], missing: string[] = [];
@@ -91,11 +90,15 @@ export function estimatePressure(r: PressureRaw, o: { catchAndRelease: boolean; 
 
   if (!r.stocked) missing.push('CDFW stocking');
   else if (r.stocked.length) {
-    const last = r.plantings?.[0];
-    const days = last ? (o.today.getTime() - new Date(`${last.WeekOfPlantStart}T12:00:00`).getTime()) / 864e5 : Infinity;
+    const { last, next } = lastAndNext(r.plantings ?? [], o.today);
+    const daysTo = (iso: string) => (o.today.getTime() - new Date(`${iso}T12:00:00`).getTime()) / 864e5;
+    // A planting this week or within the next week counts like a recent one.
+    const p = next && daysTo(next.week) >= -7 ? next : last;
+    const days = p ? daysTo(p.week) : Infinity;
     const year = Math.max(...r.stocked.map(s => Number(s.last_yr_stkd) || 0));
-    if (days >= -7 && days <= RECENT_PLANT_DAYS) add(2, `CDFW planted ${String(last!.FishType || 'fish').toLowerCase()} here the week of ${fmtWeek(last!.WeekOfPlantStart)}`);
-    else if (last && days <= 365) add(1, `Stocked by CDFW (last planted the week of ${fmtWeek(last.WeekOfPlantStart)})`);
+    if (p && days >= -7 && days <= RECENT_PLANT_DAYS)
+      add(2, `CDFW ${days < 0 ? 'plans to plant' : 'planted'} ${p.fish.toLowerCase()} here the week of ${fmtWeek(p.week)}`);
+    else if (last && days <= 365) add(1, `Stocked by CDFW (last planted the week of ${fmtWeek(last.week)})`);
     else if (year >= o.today.getFullYear() - 1) add(1, `Stocked by CDFW (last in ${year})`);
   }
 

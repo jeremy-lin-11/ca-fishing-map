@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ancestors, buildGroups, codeCmp, KINDS, parseRow } from './regdata';
+import { ancestors, buildGroups, codeCmp, codeVariants, isUnder, KINDS, mapCodes, parseRow, polygonKind, withText } from './regdata';
 import { agencyKey, classifyLands } from './land';
 import { nearestRcaLines } from './depth';
 import { interpret, type Raw } from './analyze';
@@ -10,6 +10,46 @@ describe('regdata', () => {
   it('walks section ancestors', () => {
     expect(ancestors('7.50(b)(21)(A)')).toEqual(['7.50(b)(21)', '7.50(b)', '7.50']);
     expect(ancestors('5.81')).toEqual([]);
+    // Below the lettered level, subsections have no parentheses.
+    expect(ancestors('7.40(b)(50)(E)2.a')).toEqual(['7.40(b)(50)(E)2', '7.40(b)(50)(E)', '7.40(b)(50)', '7.40(b)', '7.40']);
+    expect(ancestors('7.40(b)(1)(A)12')).toEqual(['7.40(b)(1)(A)', '7.40(b)(1)', '7.40(b)', '7.40']);
+    expect(isUnder('7.40(b)(50)(E)2.a', '7.40(b)(50)(E)2')).toBe(true);
+    expect(isUnder('7.40(b)(50)(E)20', '7.40(b)(50)(E)2')).toBe(false);
+    expect(isUnder('7.50(b)(10)', '7.50(b)(1)')).toBe(false);
+  });
+  it('reads map section lists and categories', () => {
+    expect(mapCodes('4.10, 4.10(a), 4.10(a), 7.40\n(b)(3)')).toEqual(['4.10', '4.10(a)', '7.40(b)(3)']);
+    expect(mapCodes(null)).toEqual([]);
+    expect([polygonKind('freshWaterBody'), polygonKind('tributaryArea'), polygonKind('region'), polygonKind('newThing')])
+      .toEqual(['lakes', 'tributary', 'districts', 'districts']);
+    expect(codeVariants('7.40(b)(40)(B)(1)')).toContain('7.40(b)(40)(B)1');
+    expect(codeVariants('7.40(b)(50)(b)4')).toContain('7.40(b)(50)(B)4');
+    expect(codeVariants('7.40(b)(50)(E)6a')).toContain('7.40(b)(50)(E)6.a');
+  });
+  it('parses the current markup: [start_row][row] cells, "_" for empty, paired header tags', () => {
+    const r = parseRow('7.40(b)(80)(B)1', '[start_row][row]Sacramento River.|Closed to all fishing from Apr. 1 through Jul. 31.|_[row][row]_|Aug. 1 through Dec. 31.|2 hatchery trout[row][end_row]', HEADER);
+    expect(r).toEqual({ code: '7.40(b)(80)(B)1', type: 'table', segments: [
+      { title: 'Sacramento River.', fields: [{ label: HEADER[1], value: 'Closed to all fishing from Apr. 1 through Jul. 31.' }] },
+      { title: undefined, fields: [{ label: HEADER[1], value: 'Aug. 1 through Dec. 31.' }, { label: HEADER[2], value: '2 hatchery trout' }] }
+    ] });
+    expect(parseRow('1.17', '[start_header]Bag and Possession Limit[end_header][start_subHeader]No more than one daily bag limit.[end_subHeader]', null))
+      .toEqual({ code: '1.17', type: 'text', heading: 'Bag and Possession Limit', body: 'No more than one daily bag limit.' });
+    expect(parseRow('7.00(a)', '[startPreTab]North Coast District[endPreTab]', null)).toEqual({ code: '7.00(a)', type: 'text', body: 'North Coast District' });
+  });
+  it('labels current-markup table columns by section (it has no [table header] rows)', () => {
+    const rows = new Map(Object.entries({
+      '7.50(b)(158)': { code: '7.50(b)(158)', verbatim: '[start_row][row]Twin Lakes (Mammoth, Mono Co.)|Last Sat. in Apr through Nov.15.|5 trout[row][end_row]' },
+      '5.15(b)(3)': { code: '5.15(b)(3)', verbatim: '[start_row][row]Alameda County:|_[row][row]Chabot Lake.|5[row][end_row]' }
+    }));
+    const groups = buildGroups({ failed: [], rowsByCode: rows, hits: [
+      { kind: KINDS[0], desc: 'Twin Lakes (Mammoth, Mono Co.)', code: '7.50(b)(158)' }, { kind: KINDS[0], desc: 'Chabot Lake', code: '5.15(b)(3)' }] });
+    expect(groups[0].rows[0]).toMatchObject({ segments: [{ fields: [{ label: HEADER[1] }, { label: HEADER[2], value: '5 trout' }] }] });
+    expect(groups[1].rows[0]).toMatchObject({ segments: [{ title: 'Alameda County:', fields: [] }, { title: 'Chabot Lake.', fields: [{ label: 'Bag Limit', value: '5' }] }] });
+  });
+  it('re-points a hit one level below the text to its parent row, except §7.40/§7.50 and top-level sections', () => {
+    const rows = new Map(Object.entries({ '5.15(b)(3)': { code: '5.15(b)(3)' }, '7.40(b)(129)': { code: '7.40(b)(129)' }, '4.10': { code: '4.10' } }));
+    expect(withText([{ code: '5.15(b)(3)(A)' }, { code: '7.40(b)(129)(A)' }, { code: '4.10(a)' }, { code: '5.15(b)(3)' }], rows))
+      .toEqual([{ code: '5.15(b)(3)', mapCode: '5.15(b)(3)(A)' }, { code: '7.40(b)(129)(A)' }, { code: '4.10(a)' }, { code: '5.15(b)(3)' }]);
   });
   it('sorts codes naturally', () => {
     expect(['7.50(b)(10)', '7.50(b)(2)', '7.50(b)(2)(B)', '7.50(b)(2)(A)'].sort(codeCmp))
@@ -249,6 +289,11 @@ describe('regulation freshness', () => {
     expect(freshness(null, ['2021–2022', '2022–2023'], new Date(2026, 9, 14))).toMatchObject({ stale: true, current: '2026–2027' });
     expect(freshness(null, ['2026–2027'], new Date(2026, 9, 14)).stale).toBe(false);
     expect(freshness(null, [], new Date(2026, 9, 14)).stale).toBe(false);
+  });
+  it('with no booklet cited, flags data last edited before the current booklet took effect', () => {
+    expect(freshness(new Date(2026, 9, 1), [], new Date(2026, 9, 14)).stale).toBe(false);
+    expect(freshness(new Date(2026, 1, 4), [], new Date(2026, 9, 14)).stale).toBe(true);
+    expect(freshness(new Date(2026, 1, 4), [], new Date(2026, 1, 20)).stale).toBe(false); // still the 2025–2026 booklet
   });
 });
 

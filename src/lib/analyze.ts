@@ -9,6 +9,7 @@ import { buildGroups, isUnder, lookupRegs, type RegGroup, type RegLookup } from 
 import { districtScope, summarizeGroup, troutRule, type RegSummary, type TroutRule } from './rules';
 import { estimatePressure, fetchPressure, type Pressure, type PressureRaw } from './pressure';
 import { osmLakeAt } from './osmLakes';
+import { lastAndNext, type Planting } from './plantings';
 
 export interface Analysis {
   point: LatLng;
@@ -22,8 +23,11 @@ export interface Analysis {
   regs: { special: RegGroup[]; general: RegGroup[] } | null; // null for ocean
   trout: TroutRule | null;  // today's season and trout limit; null for ocean
   pressure: Pressure | null; // estimated fishing pressure; null offline
+  plantings: Plantings | null; // CDFW stocking of the water at the point; null if not stocked, or offline
   errors: string[];
 }
+
+export interface Plantings { waters: string[]; last?: Planting; next?: Planting; count: number; lastYear: number | null }
 
 // Raw service responses for a point; interpret() turns them into an Analysis.
 export interface Raw {
@@ -32,12 +36,15 @@ export interface Raw {
   bay: Attrs[] | null; nearBay: Attrs[] | null; // San Francisco Bay District at the point / within BAY_POND_M
   coastalBay: Attrs[] | null; // other coastal bays and harbors (Estuary_Name)
   osmLake?: Attrs[] | null;   // OpenStreetMap lake at the point (NAME); absent in older offline saves
+  mussels?: Attrs[] | null;   // quagga/zebra mussel-infested waters within MUSSEL_M (Name, CName); absent in older saves
   geo: any; dem: number | null; rca: Attrs[] | null; contours: Attrs[] | null; regs: RegLookup;
   pressure?: PressureRaw; // absent offline
 }
 
 const settle = <T,>(p: Promise<T>) => p.catch(() => null);
 
+// A click on the shore of a mussel-infested lake still gets the clean-drain-dry note.
+export const MUSSEL_M = 200;
 // Diked ponds this close to the San Francisco Bay District are bay-margin salt ponds, not inland lakes.
 export const BAY_POND_M = 1500;
 // Esri water bodies (USGS NHD) types "Reservoir" covers salt evaporators and industrial ponds too; FCODE_DESC tells them apart.
@@ -63,7 +70,7 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
   const tol = clickRadius(point, zoom);
   const { layers: L, depth: D } = CONFIG;
   const salton = D.lakeContours[0];
-  const [own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs, pressure] = await Promise.all([
+  const [own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, mussels, geo, dem, rca, contours, regs, pressure] = await Promise.all([
     settle(queryPoint(L.ownership.url, point, { outFields: 'Own_Level,Own_Group,Own_Agency' })),
     settle(queryPoint(L.waterBodies.url, point, { outFields: 'NAME,FTYPE,FCODE_DESC' })),
     settle(osmLakeAt(point)),
@@ -73,6 +80,7 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
     settle(queryPoint(L.sfBay.url, point, { where: L.sfBay.where, outFields: 'feat_desc' })),
     settle(queryPoint(L.sfBay.url, point, { where: L.sfBay.where, meters: BAY_POND_M, outFields: 'feat_desc' })),
     settle(queryPoint(L.coastalBays.url, point, { where: L.coastalBays.where, outFields: 'Estuary_Name' })),
+    settle(queryPoint(L.mussels.url, point, { meters: MUSSEL_M, outFields: 'Name,CName' })),
     countyAt(point),
     sampleDem(D.dem, point),
     settle(queryPoint(D.rca, point, { meters: 2000, outFields: 'feat_desc' })),
@@ -80,7 +88,7 @@ export async function fetchPoint(point: LatLng, zoom: number): Promise<Raw> {
     lookupRegs(CONFIG.regs, point, tol).catch((): RegLookup => ({ hits: [], rowsByCode: new Map(), failed: ['freshwater regulations'] })),
     fetchPressure(point, tol)
   ]);
-  return { own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, geo, dem, rca, contours, regs, pressure };
+  return { own, waterBody, osmLake, fed, parks, mpa, bay, nearBay, coastalBay, mussels, geo, dem, rca, contours, regs, pressure };
 }
 
 // Ownership (CAL FIRE) decides the land category; Esri federal/parks layers supply unit names when they agree.
@@ -138,6 +146,7 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
   if (!d.own) errors.push('land ownership');
   if (!d.bay || !d.nearBay) errors.push('San Francisco Bay boundary');
   if (!d.coastalBay) errors.push('coastal bays');
+  if (d.mussels === null) errors.push('mussel-infested waters');
   const lands = landUnits(d.own, fed, parks);
   const land = lands[0];
   const pond = (d.waterBody ?? []).find(w => pondType(w));
@@ -190,6 +199,9 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
     notes.push({ strong: String(coastalBay.Estuary_Name || 'Coastal bay'), text: ': tidal bay or harbor. Ocean sport fishing regulations generally apply, not the freshwater booklet.' });
   if (pond)
     notes.push({ strong: pondType(pond)!, text: ': an industrial or restoration pond, not a fishing lake. These are usually closed to public entry; fish only from designated public areas.' });
+  const mussel = d.mussels?.[0];
+  if (mussel)
+    notes.push({ strong: String(mussel.Name || 'This water'), text: `: ${String(mussel.CName || 'Quagga or zebra mussel').toLowerCase()}-infested water (CDFW). Clean, drain and dry your boat, trailer and gear before leaving, and don't move water or live bait to other waters. Transporting the mussels is illegal (Fish and Game Code §2301).` });
   if (land && /ecological reserve|wildlife area|natural reserve/i.test(land.name + ' ' + land.type))
     notes.push({ text: 'Ecological Reserves/Wildlife Areas often have special fishing restrictions. Check CDFW Title 14 §630.' });
   if (land && /wilderness/i.test(land.name + ' ' + land.type))
@@ -219,9 +231,20 @@ export function interpret(point: LatLng, waterSel: WaterSelection, d: Raw, today
 
   const pressure = d.pressure ? estimatePressure(d.pressure, { catchAndRelease: trout?.daily === 0, today }) : null;
   return {
-    point, water, lands, landBadge, verdict, notes, regs, trout, pressure, errors,
+    point, water, lands, landBadge, verdict, notes, regs, trout, pressure, errors, plantings: plantingsAt(d.pressure, today),
     county: d.geo?.address?.county || d.geo?.address?.city || '',
     depth: depthNotes(point, water, d)
+  };
+}
+
+function plantingsAt(p: PressureRaw | undefined, today: Date): Plantings | null {
+  if (!p?.stocked?.length) return null;
+  const rows = p.plantings ?? [];
+  const year = Math.max(...p.stocked.map(s => Number(s.last_yr_stkd) || 0));
+  return {
+    waters: [...new Set(rows.map(r => String(r.WaterName || '')).filter(Boolean))],
+    count: rows.filter(r => new Date(`${r.WeekOfPlantStart}T12:00:00`) <= today).length,
+    lastYear: year > 0 ? year : null, ...lastAndNext(rows, today)
   };
 }
 

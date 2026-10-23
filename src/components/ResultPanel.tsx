@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { AGENCIES, LINKS, STATEWIDE, WATER } from '../regs';
 import type { Analysis } from '../lib/analyze';
 import type { ParsedRow, RegGroup } from '../lib/regdata';
+import { fmtWeek } from '../lib/plantings';
 import type { Note, Status } from '../types';
 import RegsFreshness from './RegsFreshness';
 
@@ -84,6 +85,21 @@ function PressureCard({ p }: { p: NonNullable<Analysis['pressure']> }) {
   );
 }
 
+function PlantingsCard({ p }: { p: NonNullable<Analysis['plantings']> }) {
+  const fish = (s: string) => s.toLowerCase();
+  return (
+    <Card title="CDFW fish plantings">
+      <ul>
+        <li>{p.waters.length ? <b>{p.waters.join(', ')}</b> : 'This water'} is stocked by CDFW.</li>
+        {p.next && <li>Next scheduled: {fish(p.next.fish)}, the week of {fmtWeek(p.next.week)}.</li>}
+        {p.last ? <li>Last planted: {fish(p.last.fish)}, the week of {fmtWeek(p.last.week)} ({p.count} planting{p.count === 1 ? '' : 's'} in the past year).</li>
+          : <li>No plantings in the past year{p.lastYear ? ` (last stocked in ${p.lastYear})` : ''}.</li>}
+      </ul>
+      <p className="hint">CDFW posts plantings by week; schedules can change. <Ext href={LINKS.planting}>Fish planting schedule</Ext></p>
+    </Card>
+  );
+}
+
 function Row({ row }: { row: ParsedRow }) {
   if (row.type === 'text') return <li>{row.heading && <b>{row.heading} </b>}{row.body}</li>;
   return (
@@ -104,7 +120,7 @@ function Group({ g, maxRows }: { g: RegGroup; maxRows: number }) {
   return (
     <div className="reg">
       <div className="regtitle">{g.desc || g.code} <span className="code">§{g.code}</span></div>
-      {g.mapCode && <p className="hint">CDFW's map lists §{g.mapCode} for this water; showing §{g.code}, the entry whose text names it.</p>}
+      {g.mapCode && <p className="hint">CDFW's map lists §{g.mapCode} for this water; showing §{g.code}, which holds its regulation text.</p>}
       {g.unverified && <p className="err">The section CDFW's map lists for this water doesn't name it in the regulation text. Verify in the booklet.</p>}
       <ul>{g.rows.slice(0, maxRows).map(r => <Row key={r.code} row={r} />)}</ul>
       {more > 0 && <p className="hint">…{more} more rows in this section – see full regulations.</p>}
@@ -161,6 +177,7 @@ export default function ResultPanel({ r }: { r: Analysis }) {
         <p className="hint">Change "Water type" above if this point is a {r.water === 'lake' ? 'stream' : 'lake'}; lakes and streams have different seasons.</p>
       </Card>
     )}
+    {r.plantings && <PlantingsCard p={r.plantings} />}
     {r.pressure && r.verdict.status !== 'no' && r.trout?.open !== false && <PressureCard p={r.pressure} />}
     <Fold title="Depth"><ul>{r.depth.map((n, i) => <NoteItem key={i} n={n} />)}</ul></Fold>
     {r.regs && <RegCards regs={r.regs} />}

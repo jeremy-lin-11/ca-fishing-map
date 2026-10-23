@@ -26,6 +26,11 @@ describe('estimated fishing pressure', () => {
     const old = est({ roads: [0, 2, 5], stocked, plantings: [{ WeekOfPlantStart: '2026-05-01', FishType: 'Trout' }] });
     expect(old.score).toBe(recent.score - 1);
     expect(old.reasons.map(r => r.text)).toContain('Stocked by CDFW (last planted the week of May 1)');
+    // Next week's announced planting isn't reported as done; a later one doesn't count.
+    const soon = est({ stocked, plantings: [{ WeekOfPlantStart: '2026-10-25', FishType: 'Trout' }, { WeekOfPlantStart: '2026-05-03', FishType: 'Trout' }] });
+    expect(soon.reasons.map(r => r.text)).toContain('CDFW plans to plant trout here the week of Oct 25');
+    const later = est({ stocked, plantings: [{ WeekOfPlantStart: '2026-11-15', FishType: 'Trout' }, { WeekOfPlantStart: '2026-05-03', FishType: 'Trout' }] });
+    expect(later.reasons.map(r => r.text)).toContain('Stocked by CDFW (last planted the week of May 3)');
   });
   it('catch-and-release lowers it; weekends raise it', () => {
     expect(est({}, { catchAndRelease: true }).score).toBe(est({}).score - 1);

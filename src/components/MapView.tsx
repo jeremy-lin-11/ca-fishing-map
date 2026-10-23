@@ -9,6 +9,7 @@ import type { LatLng } from '../types';
 import { EsriDynamicLayer, EsriFeatureLayer, EsriImageLayer } from './EsriLayers';
 import CaliforniaClip from './CaliforniaClip';
 import LocateControl from './LocateControl';
+import PlantingsLayer from './PlantingsLayer';
 import type { Basemap } from './MapLayers';
 import { CA_RINGS } from '../data/california';
 import type { BBox } from '../lib/geo';
@@ -28,6 +29,8 @@ const regStreamStyle = () => ({ ...regStyle, weight: 3 });
 const rcaStyle = (): L.PathOptions => ({ color: '#c1121f', weight: 1.5, dashArray: '6 4' });
 const rcaTooltip = (p: Record<string, any>) => String(p.feat_desc ?? '');
 const contourStyle = (): L.PathOptions => ({ color: '#1d4e89', weight: 1 });
+const musselStyle = (): L.PathOptions => ({ color: '#8d5524', weight: 1.5, fillColor: '#8d5524', fillOpacity: 0.35 });
+const musselTooltip = (p: Record<string, any>) => `${p.Name ?? 'Water'}: ${String(p.CName ?? 'mussel').toLowerCase()}-infested`;
 
 function ClickHandler({ onClick }: { onClick: (p: LatLng, zoom: number) => void }) {
   const map = useMapEvents({ click: e => onClick({ lat: e.latlng.lat, lng: e.latlng.lng }, map.getZoom()) });
@@ -93,9 +96,10 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
       </>}
       {visible.mpa && <EsriFeatureLayer pane={DATA} url={layers.mpa.url} minZoom={6} style={mpaStyle} />}
       {visible.regwaters && <>
-        <EsriFeatureLayer pane={DATA} url={`${regs.url}/${regs.layers.lakes}`} minZoom={8} style={regLakeStyle} />
-        <EsriFeatureLayer pane={DATA} url={`${regs.url}/${regs.layers.streams}`} minZoom={9} style={regStreamStyle} />
+        <EsriFeatureLayer pane={DATA} url={`${regs.url}/${regs.layers.polygons}`} where="category = 'freshWaterBody'" minZoom={8} style={regLakeStyle} />
+        <EsriFeatureLayer pane={DATA} url={`${regs.url}/${regs.layers.lines}`} minZoom={9} style={regStreamStyle} />
       </>}
+      {visible.mussels && <EsriFeatureLayer pane={DATA} url={layers.mussels.url} minZoom={6} style={musselStyle} tooltip={musselTooltip} />}
       {visible.depth && <>
         <EsriDynamicLayer pane={DATA} url={depth.oceanContours} opacity={0.85} />
         {depth.lakeTiles.map(lk => (
@@ -120,6 +124,8 @@ export default function MapView({ basemap, visible, mapLand, marker, flyTarget, 
         </Fragment>)}
         {savingBox && <Rectangle bounds={rect(savingBox)} interactive={false} pathOptions={{ renderer: areaSvg, color: '#bf8700', weight: 2, dashArray: '2 4', fillColor: '#bf8700', fillOpacity: 0.08 }} />}
       </Pane>
+
+      {visible.plantings && <PlantingsLayer />}
 
       {/* markerPane: above the clipped data pane, so overlays don't cover or tint it */}
       {marker && <CircleMarker pane="markerPane" center={[marker.lat, marker.lng]} radius={7} pathOptions={{ color: '#fff', weight: 2, fillColor: '#1f6feb', fillOpacity: 1 }} />}

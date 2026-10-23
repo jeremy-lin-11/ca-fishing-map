@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { decodeState, encodeState, type UrlState } from './urlState';
 
-const defaults = { overlays: { land: true, regwaters: true, mpa: true, depth: true, rca: false } };
+const defaults = { overlays: { land: true, regwaters: true, mpa: true, plantings: true, mussels: true, depth: true, rca: false } };
 
 describe('shareable URL state', () => {
   it('round-trips a full state', () => {
